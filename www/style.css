@@ -13,7 +13,28 @@
   background: #ffecea; controls shaded background color
 }*/
 
-#med_history_timeline .vis-item {
+#timeline .vis-item.medical {
+  border-color: #1170AA;  /*this controls the line and dot color
+  background-color: pink; controls color of item box
+  font-size: 15pt; controls font of item
+  color: purple; control text color of item text*/ 
+}
+
+#timeline .vis-item.medical-follow-up {
+  border-color: #FE7D00;  /*this controls the line and dot color
+  background-color: pink; controls color of item box
+  font-size: 15pt; controls font of item
+  color: purple; control text color of item text*/ 
+}
+
+#timeline .vis-item.routine {
+  border-color: #5CA1D0;  /*this controls the line and dot color
+  background-color: pink; controls color of item box
+  font-size: 15pt; controls font of item
+  color: purple; control text color of item text*/ 
+}
+
+#timeline .vis-item {
   /*border-color: #F991A3; this controls the line and dot color
   background-color: pink; controls color of item box
   font-size: 15pt; controls font of item
@@ -26,9 +47,9 @@
   border-width: 5px; /* controls line thickness */
 }
 
-#med_history_timeline .vis-item.vis-dot {
-  border-width: 10px;
-  border-radius: 10px;
+#timeline .vis-item.vis-dot {
+  border-width: 5px;
+  border-radius: 5px;
 }
 
 #med_history_timeline .vis-item.vis-selected {
