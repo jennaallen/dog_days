@@ -76,3 +76,16 @@
   border-width: 2px; not sure what this does
   border-color: #F991A3;
 }*/
+
+/*.dataTable {
+  font-size: 12px; controls just the datatable part
+}*/
+
+/*#med_tests_table {
+  font-size: 12px; controls all the font
+}*/
+
+.dataTables_wrapper 
+.dataTables_paginate {
+  font-size: 12px;
+}

@@ -30,28 +30,32 @@ all_dogs <- sort(unique(dimDogs$dog_name))
 
 # UI
 ui <- fluidPage(
+  
+  # use custom css
     tags$head(
       tags$link(href = "style.css", rel = "stylesheet")
     ),
+    
     titlePanel("Pet Records",
                windowTitle = "Pets"),
+    
   sidebarLayout(
     
-    # Inputs
+    # inputs
     sidebarPanel(radioButtons(inputId = "dog",
-                                    label = "Select dog:",
-                                    choices = all_dogs,
-                                    selected = "Layla"), 
+                              label = "Select dog:",
+                              choices = all_dogs,
+                              selected = "Layla"), 
                  
-                 hr(), # Horizontal line for visual separation
+                 hr(), # horizontal line for visual separation
                  
-                 # Display relevent pet information
+                 # display relevent pet information
                  htmlOutput("pet_info"), 
                  
-                 hr(), # Horizontal line for visual separation
+                 hr(), # horizontal line for visual separation
                  
-                 # Built with Shiny by RStudio
-                 br(), br(),    # Two line breaks for visual separation
+                 # built with Shiny by RStudio
+                 br(), br(),    # two line breaks for visual separation
                  h5("Built with",
                     img(src = "https://www.rstudio.com/wp-content/uploads/2014/04/shiny.png", height = "30px"),
                     "by",
@@ -60,30 +64,39 @@ ui <- fluidPage(
                  width = 2),
     
     # Outputs
-    mainPanel(tabsetPanel(tabPanel("Medical History", 
-                                 fluidRow(
-                                   column(wellPanel(timevisOutput("med_history_timeline")
-                                                    ), width = 7,
-                                          fluidRow(column(wellPanel(dataTableOutput(outputId = "vets_table")
-                                                                    ), width = 12
-                                                          )
-                                                   )
-                                          
-                                          ), 
-                                   column(wellPanel(dataTableOutput(outputId = "med_tests_table")
-                                                    ), width = 5,
-                                          fluidRow(column(wellPanel(dataTableOutput(outputId = "current_meds_table")
-                                                                    ), width = 12,
-                                                          fluidRow(column(wellPanel(DT::dataTableOutput(outputId = "past_meds_table")
-                                                                                    ), width = 12
-                                                                          )
-                                                                   )
-                                                          )
-                                                   )
-                                          )
-                                   )
-                                 )
-                        ), width = 10
+    mainPanel(tabsetPanel(tabPanel("Medical History", fluidRow(
+      # display timeline
+      column(7, wellPanel(h4("Medical History Timeline"),
+                          timevisOutput("med_history_timeline"),
+                          actionButton("fit", "Reset view")
+                          ),
+             # display vets table
+             fluidRow(column(12, wellPanel(h4("Vets"), 
+                                           dataTableOutput(outputId = "vets_table")
+                                           )
+                             )
+                      )
+             ), 
+      # display medical tests
+      column(5, wellPanel(h4("Medical Tests"),
+                          dataTableOutput(outputId = "med_tests_table")
+                          ),
+             # display current medications
+             fluidRow(column(12, wellPanel(h4("Current Medications"), 
+                                           dataTableOutput(outputId = "current_meds_table")
+                                           ),
+                             # display past medications
+                             fluidRow(column(12, wellPanel(h4("Past Medications"),
+                                                           dataTableOutput(outputId = "past_meds_table")
+                                                           )
+                                             )
+                                      )
+                             )
+                      )
+             )
+      )
+      )
+      ), width = 10
             )
   )
 )
@@ -174,6 +187,11 @@ server <- function(input, output) {
       timevis(options = config)
     })
   
+  # reset timeline view
+  observeEvent(input$fit, {
+    fitWindow("med_history_timeline")
+  })
+  
   # Create tests data table
   output$med_tests_table <- renderDataTable({
     req(input$dog)
@@ -182,7 +200,7 @@ server <- function(input, output) {
       inner_join(dimTests, by = c("dog_name", "visit_date" = "test_date_given", "facility_name")) %>%
       filter(dog_name %in% input$dog, str_detect(test_category, "medical")) %>% 
       select(visit_id, visit_date, test_name, test_result) %>% 
-      datatable(options = list(pageLength = 5),
+      datatable(options = list(pageLength = 5, dom = 'ltip'),
                                rownames = FALSE)
    })
 
@@ -192,7 +210,7 @@ server <- function(input, output) {
     dimMeds %>%
       filter(dog_name %in% input$dog, med_current_flag == "Y") %>%
       select(med_name, med_start_date) %>% 
-      datatable(options = list(pageLength = 5),
+      datatable(options = list(pageLength = 5, dom = 'ltip'),
                 rownames = FALSE)
   })
   
@@ -202,7 +220,7 @@ server <- function(input, output) {
     dimMeds %>%
       filter(dog_name %in% input$dog, med_current_flag == "N") %>%
       select(med_name, med_start_date) %>% 
-      datatable(options = list(pageLength = 5),
+      datatable(options = list(pageLength = 5, dom = 'ltip'),
                 rownames = FALSE)
   })
   
@@ -214,7 +232,7 @@ server <- function(input, output) {
       filter(dog_name %in% input$dog) %>%
       select(facility_name, vet_phone, vet_website, vet_email, vet_state) %>% 
       distinct() %>% 
-      datatable(options = list(pageLength = 10),
+      datatable(options = list(pageLength = 10, dom = 'ltip'),
                 rownames = FALSE)
   })
 }
