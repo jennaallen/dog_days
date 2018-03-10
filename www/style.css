@@ -1,0 +1,57 @@
+#med_history_timeline {
+  box-shadow: 2px 2px 3px #444;
+  margin-bottom: 30px;
+}
+
+/*#med_history_timeline {
+  font-family:  purisa, 'comic sans', cursive;
+}*/
+
+/*#med_history_timeline .vis-timeline {
+  border: 2px solid purple;
+  font-size: 12pt;
+  background: #ffecea; controls shaded background color
+}*/
+
+#med_history_timeline .vis-item {
+  /*border-color: #F991A3; this controls the line and dot color
+  background-color: pink; controls color of item box
+  font-size: 15pt; controls font of item
+  color: purple; control text color of item text*/ 
+  box-shadow: 5px 5px 20px rgba(128,128,128, 0.5);
+  border-width: 1px; /*controls border around item */
+}
+
+#med_history_timeline .vis-item.vis-line {
+  border-width: 5px; /* controls line thickness */
+}
+
+#med_history_timeline .vis-item.vis-dot {
+  border-width: 10px;
+  border-radius: 10px;
+}
+
+#med_history_timeline .vis-item.vis-selected {
+  border-color: green;
+  background-color: lightgreen;
+}
+
+/*#med_history_timeline .vis-odd {
+  background: #ffd7d7; controls the color for the unshaded background
+}*/
+
+/*#med_history_timeline .vis-time-axis .vis-text {
+  color: purple; changes axis text color and somehow the scale
+  padding-top: 10px;
+  padding-left: 10px;
+}*/
+
+/*#med_history_timeline .vis-time-axis .vis-grid.vis-minor {
+  border-width: 2px; changes line inbetween months on axis
+  border-color: pink;
+}*/
+
+/*#med_history_timeline .vis-time-axis .vis-grid.vis-major {
+  border-width: 2px; not sure what this does
+  border-color: #F991A3;
+}*/
