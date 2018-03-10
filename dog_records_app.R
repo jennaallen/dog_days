@@ -1,5 +1,6 @@
 library(shiny)
 library(readr)
+library(stringr)
 library(dplyr)
 library(timevis)
 library(DT)
@@ -24,7 +25,7 @@ dimVaccines <- read_csv("dimVaccines.csv")
 all_dogs <- sort(unique(dimDogs$dog_name))
 all_visit_categories <- dimVisits %>% 
   select(visit_category) %>% 
-  filter(visit_category != "Initial visit") %>% 
+  filter(!(str_detect(visit_category, "Initial visit|;"))) %>% 
   distinct() %>% 
   pull() %>% 
   sort()
@@ -94,7 +95,7 @@ server <- function(input, output) {
     
     dimVisits %>% 
       inner_join(dimDogs, by = "dog_name") %>% 
-      filter(dog_name %in% input$dog, visit_category %in% input$visit_category) %>%
+      filter(dog_name %in% input$dog, str_detect(visit_category, input$visit_category)) %>%
       rename(id = visit_id, content = visit_summary, start = visit_date) %>% 
        mutate(className = case_when(
          visit_category == "medical" ~ "medical",
@@ -111,8 +112,8 @@ server <- function(input, output) {
     dimVisits %>% 
       inner_join(dimDogs, by = "dog_name") %>% 
       inner_join(dimTests, by = c("dog_name", "visit_date" = "test_date_given", "facility_name")) %>%
-      filter(dog_name %in% input$dog, visit_category %in% input$visit_category) %>% 
-      select(visit_id, visit_date, test_name, test_result) %>% 
+      filter(dog_name %in% input$dog, str_detect(test_category, input$visit_category)) %>% 
+      select(visit_id, visit_date, test_name, test_result, test_category) %>% 
       datatable(options = list(pageLength = 10),
                                rownames = FALSE)
    })
