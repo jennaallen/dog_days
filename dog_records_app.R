@@ -20,7 +20,7 @@ dimVaccines <- read_csv("dimVaccines.csv")
 #   left_join(dimTests, by = c("dog_name", "visit_date" = "test_date_given", "facility_name")) %>% 
 #   distinct()
 
-all_dogs <- sort(unique(dimDogs$dog_name))
+all_pets <- sort(unique(dimDogs$dog_name))
 # all_visit_categories <- dimVisits %>% 
 #   select(visit_category) %>% 
 #   filter(!(str_detect(visit_category, "Initial visit|;"))) %>% 
@@ -42,14 +42,16 @@ ui <- fluidPage(
   sidebarLayout(
     
     # inputs
-    sidebarPanel(radioButtons(inputId = "dog",
-                              label = "Select dog:",
-                              choices = all_dogs,
+    sidebarPanel(radioButtons(inputId = "pet",
+                              label = "Select pet:",
+                              choices = all_pets,
                               selected = "Layla"), 
                  
                  hr(), # horizontal line for visual separation
                  
                  # display relevent pet information
+                 htmlOutput("pet_image"),
+                 br(),
                  htmlOutput("pet_info"), 
                  
                  hr(), # horizontal line for visual separation
@@ -96,6 +98,39 @@ ui <- fluidPage(
              )
       )
       )
+      # tabPanel("Vaccine History", wellPanel(timevisOutput("vaccine_history_timeline")))
+      # tabPanel("Vaccine History", fluidRow(
+      #   # display timeline
+      #   column(7, wellPanel(h4("Medical History Timeline"),
+      #                       timevisOutput("med_history_timeline"),
+      #                       actionButton("fit", "Reset view")
+      #   ),
+      #   # display vets table
+      #   fluidRow(column(12, wellPanel(h4("Vets"), 
+      #                                 dataTableOutput(outputId = "vets_table")
+      #   )
+      #   )
+      #   )
+      #   ), 
+      #   # display medical tests
+      #   column(5, wellPanel(h4("Current Vaccines"),
+      #                       dataTableOutput(outputId = "med_tests_table")
+      #   ),
+      #   # display current medications
+      #   fluidRow(column(12, wellPanel(h4("Current Medications"), 
+      #                                 dataTableOutput(outputId = "current_meds_table")
+      #   ),
+      #   # display past medications
+      #   fluidRow(column(12, wellPanel(h4("Past Medications"),
+      #                                 dataTableOutput(outputId = "past_meds_table")
+      #   )
+      #   )
+      #   )
+      #   )
+      #   )
+      #   )
+      # )
+      # )
       ), width = 10
             )
   )
@@ -144,30 +179,40 @@ ui <- fluidPage(
 # Server
 server <- function(input, output) {
   
-  # Create dog info to be displayed in sidepanel
+  # Get pet image
+  output$pet_image <- renderText({
+    req(input$pet)
+    image <- dimDogs %>% 
+      filter(dog_name %in% input$pet) %>% 
+      pull(picture)
+    paste("<img src = ",'"',image,'", height = "30px">', sep = "")
+   })
+  
+  # Create pet info to be displayed in sidepanel
   output$pet_info <- renderUI({
-   dob <- paste(strong("DOB:"), dimDogs %>% 
-      filter(dog_name %in% input$dog) %>% 
+    req(input$pet)
+    dob <- paste(strong("DOB:"), dimDogs %>% 
+      filter(dog_name %in% input$pet) %>% 
       pull(date_of_birth))
-   species <- paste(strong("Species:"), dimDogs %>% 
-                      filter(dog_name %in% input$dog) %>% 
+    species <- paste(strong("Species:"), dimDogs %>% 
+                      filter(dog_name %in% input$pet) %>% 
                       pull(species))
-   breed <- paste(strong("Breed:"), dimDogs %>% 
-                      filter(dog_name %in% input$dog) %>% 
+    breed <- paste(strong("Breed:"), dimDogs %>% 
+                      filter(dog_name %in% input$pet) %>% 
                       pull(breed))
-   sex <- paste(strong("Sex:"), dimDogs %>% 
-                    filter(dog_name %in% input$dog) %>% 
+    sex <- paste(strong("Sex:"), dimDogs %>% 
+                    filter(dog_name %in% input$pet) %>% 
                     unite(sex, sex, reproductive_status, sep = " ") %>% 
                     pull(sex))
-   color <- paste(strong("Color:"), dimDogs %>% 
-                    filter(dog_name %in% input$dog) %>% 
+    color <- paste(strong("Color:"), dimDogs %>% 
+                    filter(dog_name %in% input$pet) %>% 
                     pull(color))
-   HTML(paste(dob, species, breed, sex, color, sep = "<br>"))
+    HTML(paste(dob, species, breed, sex, color, sep = "<br>"))
   })
   
   # Create med history timeline
   output$med_history_timeline <- renderTimevis({
-    req(input$dog)
+    req(input$pet)
     config <- list(
       orientation = "top",
       multiselect = TRUE
@@ -175,7 +220,7 @@ server <- function(input, output) {
     
     dimVisits %>% 
       inner_join(dimDogs, by = "dog_name") %>% 
-      filter(dog_name %in% input$dog, str_detect(visit_category, "medical")) %>%
+      filter(dog_name %in% input$pet, str_detect(visit_category, "medical")) %>%
       rename(id = visit_id, content = med_visit_summary, start = visit_date) %>% 
         mutate(className = case_when(
          visit_category == "medical" ~ "medical",
@@ -192,13 +237,36 @@ server <- function(input, output) {
     fitWindow("med_history_timeline")
   })
   
+  # Create med history timeline
+  # output$vaccine_history_timeline <- renderTimevis({
+  #   req(input$pet)
+  #   config <- list(
+  #     orientation = "top",
+  #     multiselect = TRUE
+  #   )
+  #   
+  #   dimVisits %>% 
+  #     inner_join(dimDogs, by = "dog_name") %>% 
+  #     filter(dog_name %in% input$pet, str_detect(visit_category, "medical")) %>%
+  #     rename(id = visit_id, content = med_visit_summary, start = visit_date) %>% 
+  #     mutate(className = case_when(
+  #       visit_category == "medical" ~ "medical",
+  #       visit_category == "medical follow-up" ~ "medical-follow-up",
+  #       visit_category == "medical; routine" ~ "medical",
+  #       visit_category == "medical follow-up; routine" ~ "medical-follow-up"),
+  #       # possibly unite some fields together to make what displays in the title
+  #       title = visit_notes) %>%
+  #     timevis(options = config)
+  # })
+  
+  
   # Create tests data table
   output$med_tests_table <- renderDataTable({
-    req(input$dog)
+    req(input$pet)
     dimVisits %>% 
       inner_join(dimDogs, by = "dog_name") %>% 
       inner_join(dimTests, by = c("dog_name", "visit_date" = "test_date_given", "facility_name")) %>%
-      filter(dog_name %in% input$dog, str_detect(test_category, "medical")) %>% 
+      filter(dog_name %in% input$pet, str_detect(test_category, "medical")) %>% 
       select(visit_id, visit_date, test_name, test_result) %>% 
       datatable(options = list(pageLength = 5, dom = 'ltip'),
                                rownames = FALSE)
@@ -206,9 +274,9 @@ server <- function(input, output) {
 
   # Create current meds data table
   output$current_meds_table <- renderDataTable({
-    req(input$dog)
+    req(input$pet)
     dimMeds %>%
-      filter(dog_name %in% input$dog, med_current_flag == "Y") %>%
+      filter(dog_name %in% input$pet, med_current_flag == "Y") %>%
       select(med_name, med_start_date) %>% 
       datatable(options = list(pageLength = 5, dom = 'ltip'),
                 rownames = FALSE)
@@ -216,9 +284,9 @@ server <- function(input, output) {
   
   # Create past meds data table
   output$past_meds_table <- renderDataTable({
-    req(input$dog)
+    req(input$pet)
     dimMeds %>%
-      filter(dog_name %in% input$dog, med_current_flag == "N") %>%
+      filter(dog_name %in% input$pet, med_current_flag == "N") %>%
       select(med_name, med_start_date) %>% 
       datatable(options = list(pageLength = 5, dom = 'ltip'),
                 rownames = FALSE)
@@ -226,10 +294,10 @@ server <- function(input, output) {
   
   # Create vest data table
   output$vets_table <- renderDataTable({
-    req(input$dog)
+    req(input$pet)
     dimVisits %>%
       left_join(dimVets, by = "facility_name") %>% 
-      filter(dog_name %in% input$dog) %>%
+      filter(dog_name %in% input$pet) %>%
       select(facility_name, vet_phone, vet_website, vet_email, vet_state) %>% 
       distinct() %>% 
       datatable(options = list(pageLength = 10, dom = 'ltip'),

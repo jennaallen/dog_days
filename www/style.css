@@ -85,7 +85,11 @@
   font-size: 12px; controls all the font
 }*/
 
-.dataTables_wrapper 
-.dataTables_paginate {
+/*.dataTables_wrapper*/
+/*.dataTables_paginate {
   font-size: 12px;
 }
+
+.dataTables_info {
+  font-size: 12px;
+}*/
