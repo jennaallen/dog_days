@@ -189,7 +189,7 @@ server <- function(input, output) {
    })
   
   # Create pet info to be displayed in sidepanel
-  output$pet_info <- renderUI({
+  output$pet_info <- renderText({
     req(input$pet)
     dob <- paste(strong("DOB:"), dimDogs %>% 
       filter(dog_name %in% input$pet) %>% 
@@ -207,7 +207,7 @@ server <- function(input, output) {
     color <- paste(strong("Color:"), dimDogs %>% 
                     filter(dog_name %in% input$pet) %>% 
                     pull(color))
-    HTML(paste(dob, species, breed, sex, color, sep = "<br>"))
+    paste(dob, species, breed, sex, color, sep = "<br>")
   })
   
   # Create med history timeline
