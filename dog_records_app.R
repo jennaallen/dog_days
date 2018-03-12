@@ -68,75 +68,27 @@ ui <- fluidPage(
                  width = 2),
     
     # Outputs
-    mainPanel(tabsetPanel(tabPanel("Medical History", fluidRow(
-      # display timeline
-      column(7, wellPanel(h4("Medical History Timeline"),
-                          timevisOutput("med_history_timeline"),
-                          actionButton("fit", "Reset view")
-                          ),
-             # display vets table
-             fluidRow(column(12, wellPanel(h4("Vets"), 
-                                           dataTableOutput(outputId = "vets_table")
-                                           )
-                             )
-                      )
-             ), 
-      # display medical tests
-      column(5, wellPanel(h4("Medical Tests"),
-                          dataTableOutput(outputId = "med_tests_table")
-                          ),
-             # display current medications
-             fluidRow(column(12, wellPanel(h4("Current Medications"), 
-                                           dataTableOutput(outputId = "current_meds_table")
-                                           ),
-                             # display past medications
-                             fluidRow(column(12, wellPanel(h4("Past Medications"),
-                                                           dataTableOutput(outputId = "past_meds_table")
-                                                           )
-                                             )
-                                      )
-                             )
-                      )
-             )
-      )
-      )
-      # tabPanel("Vaccine History", wellPanel(timevisOutput("vaccine_history_timeline")))
-      # tabPanel("Vaccine History", fluidRow(
-      #   # display timeline
-      #   column(7, wellPanel(h4("Medical History Timeline"),
-      #                       timevisOutput("med_history_timeline"),
-      #                       actionButton("fit", "Reset view")
-      #   ),
-      #   # display vets table
-      #   fluidRow(column(12, wellPanel(h4("Vets"), 
-      #                                 dataTableOutput(outputId = "vets_table")
-      #   )
-      #   )
-      #   )
-      #   ), 
-      #   # display medical tests
-      #   column(5, wellPanel(h4("Current Vaccines"),
-      #                       dataTableOutput(outputId = "med_tests_table")
-      #   ),
-      #   # display current medications
-      #   fluidRow(column(12, wellPanel(h4("Current Medications"), 
-      #                                 dataTableOutput(outputId = "current_meds_table")
-      #   ),
-      #   # display past medications
-      #   fluidRow(column(12, wellPanel(h4("Past Medications"),
-      #                                 dataTableOutput(outputId = "past_meds_table")
-      #   )
-      #   )
-      #   )
-      #   )
-      #   )
-      #   )
-      # )
-      # )
-      ), width = 10
-            )
+    mainPanel(tabsetPanel(tabPanel("Medical History", 
+                                   wellPanel(h4("Medical History Timeline"),
+                                             timevisOutput("med_history_timeline"),
+                                             actionButton("fit", "Reset view"),
+                                             h4("Test History Timeline"),
+                                             timevisOutput("test_history_timeline")
+                                             ),
+                                   fluidRow(column(6, wellPanel(h4("Vets"), 
+                                                                dataTableOutput(outputId = "vets_table")
+                                                                )
+                                                   ),
+                                            column(6, wellPanel(h4("Current Medications"), 
+                                                                dataTableOutput(outputId = "current_meds_table")
+                                                                )
+                                                   )
+                                            )
+                                   )
+                          ), width = 10
+              )
+    )
   )
-)
   
                   # checkboxGroupInput(inputId = "visit_category",
                   #                    label = "Select visit history:",
@@ -260,8 +212,8 @@ server <- function(input, output) {
       filter(dog_name %in% input$pet, str_detect(test_category, "medical")) %>%
       rename(content = test_name, start = test_date_performed) %>%
       mutate(className = case_when(
-        visit_category == "medical" ~ "medical",
-        visit_category == "medical follow-up" ~ "medical-follow-up"),
+        test_category == "medical" ~ "medical",
+        test_category == "medical follow-up" ~ "medical-follow-up"),
         # possibly unite some fields together to make what displays in the title
         title = test_result) %>%
       timevis(options = config)
