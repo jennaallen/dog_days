@@ -15,6 +15,7 @@ dimVets <- read_csv("dimVets.csv")
 dimVaccines <- read_csv("dimVaccines.csv")
 
 
+
 # all_data <- dimVisits %>% 
 #   left_join(dimDogs, by = "dog_name") %>% 
 #   left_join(dimVets, by = "facility_name") %>% 
@@ -56,6 +57,8 @@ ui <- fluidPage(
                  imageOutput("pet_image", inline = TRUE),
                  br(), br(),
                  htmlOutput("pet_info"), 
+                 br(), br(),
+                 sparklineOutput("pet_weight"),
                  
                  hr(), # horizontal line for visual separation
                  
@@ -146,6 +149,16 @@ server <- function(input, output) {
     paste(dob, species, breed, sex, color, sep = "<br>")
   })
   
+  # Create pet weight history sparkline
+  output$pet_weight <- renderSparkline({
+    dimVisits %>% 
+      select(dog_name, visit_weight) %>% 
+      filter(dog_name == "Layla", !is.na(visit_weight)) %>% 
+      pull(visit_weight) %>% 
+      sparkline(width = "100%", height = "100px", spotRadius = 10, highlightSpotColor = "#14c8fd", fillColor = FALSE) #, highlightLineColor = , lineColor = , )
+  })
+  
+  
   # Create grouped medical and tests history timeline
   output$med_history_timeline <- renderTimevis({
     req(input$pet)
@@ -221,14 +234,23 @@ server <- function(input, output) {
   output$vaccine_history_timeline <- renderTimevis({
     req(input$pet)
     
-    dimVaccines %>% 
+    vac <- dimVaccines %>% 
       inner_join(dimDogs, by = "dog_name") %>% 
-      filter(dog_name %in% input$pet, vaccine_current_flag %in% input$vacc) %>% 
-      rename(content = vaccine_name, start = vaccine_date_given, end = vaccine_date_expires, title = facility_name) %>% 
-      mutate(className = case_when(
-        vaccine_current_flag == "Y" ~ "current",
-        vaccine_current_flag == "N" ~ "past")) %>% 
-      timevis()
+      select(dog_name, content = vaccine_name, start = vaccine_date_given, end = vaccine_date_expires, title = facility_name, current_flag = vaccine_current_flag)
+    
+    tests <- dimTests %>% 
+      inner_join(dimDogs, by = "dog_name") %>%
+      filter(!is.na(test_current_flag)) %>% 
+      select(dog_name, content = test_name, start = test_date_performed, end = test_date_expires, title = facility_name, current_flag = test_current_flag) 
+    
+vac %>% 
+    bind_rows(tests) %>% 
+      filter(dog_name %in% input$pet, current_flag %in% input$vacc) %>% 
+    mutate(className = case_when(
+      current_flag == "Y" ~ "current",
+      current_flag == "N" ~ "past"),
+    title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", title, sep = "")) %>% 
+    timevis()
   })
   
   # reset timeline view
