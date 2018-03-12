@@ -14,6 +14,24 @@ dimDogs <- read_csv("dimDogs.csv")
 dimVets <- read_csv("dimVets.csv")
 dimVaccines <- read_csv("dimVaccines.csv")
 
+
+timeline_visits <- dimVisits %>% 
+  inner_join(dimDogs, by = "dog_name") %>% 
+  filter(dog_name %in% "Layla", str_detect(visit_category, "medical")) %>% 
+  rename(content = med_visit_summary, start = visit_date, title = visit_notes, category = visit_category) %>% 
+  select(dog_name, facility_name, start, title, content, category) %>% 
+  mutate(group = "med")
+
+timeline_tests <- dimTests %>% 
+  inner_join(dimDogs, by = "dog_name") %>%
+  filter(dog_name %in% "Layla", str_detect(test_category, "medical")) %>%
+  rename(content = test_name, start = test_date_performed, title = test_result, category = test_category) %>%
+  select(dog_name, facility_name, start, title, content, category) %>% 
+  mutate(group = "test") 
+
+grouped_data <- timeline_visits %>% 
+  bind_rows(timeline_tests)
+
 # all_data <- dimVisits %>% 
 #   left_join(dimDogs, by = "dog_name") %>% 
 #   left_join(dimVets, by = "facility_name") %>% 
@@ -71,10 +89,10 @@ ui <- fluidPage(
     mainPanel(tabsetPanel(tabPanel("Medical History", 
                                    wellPanel(h4("Medical History Timeline"),
                                              timevisOutput("med_history_timeline"),
-                                             actionButton("fit", "Reset view"),
-                                             h4("Test History Timeline"),
-                                             timevisOutput("test_history_timeline")
-                                             ),
+                                             actionButton("fit", "Reset view")),
+                                             # h4("Test History Timeline"),
+                                             # timevisOutput("test_history_timeline")
+                                             # ),
                                    fluidRow(column(6, wellPanel(h4("Vets"), 
                                                                 dataTableOutput(outputId = "vets_table")
                                                                 )
@@ -89,46 +107,6 @@ ui <- fluidPage(
               )
     )
   )
-  
-                  # checkboxGroupInput(inputId = "visit_category",
-                  #                    label = "Select visit history:",
-                  #                    choices = all_visit_categories,
-                  #                    selected = "medical")), width = 2),
-     # column(wellPanel(timevisOutput("med_history_timeline")
-     #                   ), width = 6
-     #         ),
-     #  column(wellPanel(dataTableOutput(outputId = "med_tests_table")
-     #                   ), width = 4)
-      # column(wellPanel(DT::dataTableOutput(outputId = "teststable")
-      #                  ),
-      #        width = 3,
-      #        fluidRow(column(wellPanel(DT::dataTableOutput(outputId = "current_meds_table")
-      #                                  ), width = 12,
-      #                        fluidRow(column(wellPanel(DT::dataTableOutput(outputId = "past_meds_table")
-      #                                                  ), width = 12)
-      #                                 )
-      #                        )
-      #                 )
-      #        )
-  #     ))#),
-  #     
-  #     # selectInput(inputId = "dog",
-  #     #             label = "Select dog:",
-  #     #             choices = all_dogs,
-  #     #             selected = "Layla",
-  #     #             multiple = TRUE)
-  #     
-  #     )
-  # )
-    
-#     # Output(s)
-#     mainPanel(
-#       DT::dataTableOutput(outputId = "teststable"),
-#     width = 4),
-#     
-#     wellPanel("something", width = 4)
-#   )
-# )
 
 # Server
 server <- function(input, output) {
@@ -172,53 +150,92 @@ server <- function(input, output) {
     paste(dob, species, breed, sex, color, sep = "<br>")
   })
   
-  # Create medical history timeline
+  # Create grouped medical and tests history timeline
   output$med_history_timeline <- renderTimevis({
     req(input$pet)
-    config <- list(
-      orientation = "top",
-      multiselect = TRUE
-      )
     
-    dimVisits %>% 
+    timeline_visits <- dimVisits %>% 
       inner_join(dimDogs, by = "dog_name") %>% 
-      filter(dog_name %in% input$pet, str_detect(visit_category, "medical")) %>%
-      rename(id = visit_id, content = med_visit_summary, start = visit_date) %>% 
-        mutate(className = case_when(
-         visit_category == "medical" ~ "medical",
-         visit_category == "medical follow-up" ~ "medical-follow-up",
-         visit_category == "medical; routine" ~ "medical",
-         visit_category == "medical follow-up; routine" ~ "medical-follow-up"),
-         # possibly unite some fields together to make what displays in the title
-         title = visit_notes) %>%
-      timevis(options = config)
-    })
+      filter(dog_name %in% input$pet, str_detect(visit_category, "medical")) %>% 
+      rename(content = med_visit_summary, start = visit_date, title = visit_notes, category = visit_category) %>% 
+      select(dog_name, facility_name, start, title, content, category) %>% 
+      mutate(group = "med")
+    
+    timeline_tests <- dimTests %>% 
+      inner_join(dimDogs, by = "dog_name") %>%
+      filter(dog_name %in% input$pet, str_detect(test_category, "medical")) %>%
+      rename(content = test_name, start = test_date_performed, title = test_result, category = test_category) %>%
+      select(dog_name, facility_name, start, title, content, category) %>% 
+      mutate(group = "test") 
+    
+    grouped_data <- timeline_visits %>% 
+      bind_rows(timeline_tests) %>% 
+      mutate(className = case_when(
+        category == "medical" ~ "medical",
+        category == "medical follow-up" ~ "medical-follow-up",
+        category == "medical; routine" ~ "medical",
+        category == "medical follow-up; routine" ~ "medical-follow-up"))
+    
+    groups <- data.frame(
+      id = c("med", "test"),
+      content = c("Medical History", "Test History")
+    )
+      
+      timevis(grouped_data, groups = groups)
+  })
   
   # reset timeline view
   observeEvent(input$fit, {
     fitWindow("med_history_timeline")
   })
   
-  # Create test history timeline
-  output$test_history_timeline <- renderTimevis({
-    req(input$pet)
-    config <- list(
-      orientation = "top",
-      multiselect = TRUE
-    )
-
-    dimTests %>%
-      inner_join(dimDogs, by = "dog_name") %>%
-      filter(dog_name %in% input$pet, str_detect(test_category, "medical")) %>%
-      rename(content = test_name, start = test_date_performed) %>%
-      mutate(className = case_when(
-        test_category == "medical" ~ "medical",
-        test_category == "medical follow-up" ~ "medical-follow-up"),
-        # possibly unite some fields together to make what displays in the title
-        title = test_result) %>%
-      timevis(options = config)
-  })
-  
+  # # Create medical history timeline
+  # output$med_history_timeline <- renderTimevis({
+  #   req(input$pet)
+  #   config <- list(
+  #     orientation = "top",
+  #     multiselect = TRUE
+  #     )
+  #   
+  #   dimVisits %>% 
+  #     inner_join(dimDogs, by = "dog_name") %>% 
+  #     filter(dog_name %in% input$pet, str_detect(visit_category, "medical")) %>%
+  #     rename(id = visit_id, content = med_visit_summary, start = visit_date) %>% 
+  #       mutate(className = case_when(
+  #        visit_category == "medical" ~ "medical",
+  #        visit_category == "medical follow-up" ~ "medical-follow-up",
+  #        visit_category == "medical; routine" ~ "medical",
+  #        visit_category == "medical follow-up; routine" ~ "medical-follow-up"),
+  #        # possibly unite some fields together to make what displays in the title
+  #        title = visit_notes) %>%
+  #     timevis(options = config)
+  #   })
+  # 
+  # # reset timeline view
+  # observeEvent(input$fit, {
+  #   fitWindow("med_history_timeline")
+  # })
+  # 
+  # # Create test history timeline
+  # output$test_history_timeline <- renderTimevis({
+  #   req(input$pet)
+  #   config <- list(
+  #     orientation = "top",
+  #     multiselect = TRUE
+  #   )
+  # 
+  #   dimTests %>%
+  #     inner_join(dimDogs, by = "dog_name") %>%
+  #     filter(dog_name %in% input$pet, str_detect(test_category, "medical")) %>%
+  #     rename(content = test_name, start = test_date_performed) %>%
+  #     mutate(className = case_when(
+  #       test_category == "medical" ~ "medical",
+  #       test_category == "medical follow-up" ~ "medical-follow-up"),
+  #       # possibly unite some fields together to make what displays in the title
+  #       title = test_result) %>%
+  #     timevis(options = config)
+  # })
+  # 
   
   # Create tests data table
   output$med_tests_table <- renderDataTable({
