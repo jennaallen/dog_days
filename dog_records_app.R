@@ -15,23 +15,6 @@ dimVets <- read_csv("dimVets.csv")
 dimVaccines <- read_csv("dimVaccines.csv")
 
 
-timeline_visits <- dimVisits %>% 
-  inner_join(dimDogs, by = "dog_name") %>% 
-  filter(dog_name %in% "Layla", str_detect(visit_category, "medical")) %>% 
-  rename(content = med_visit_summary, start = visit_date, title = visit_notes, category = visit_category) %>% 
-  select(dog_name, facility_name, start, title, content, category) %>% 
-  mutate(group = "med")
-
-timeline_tests <- dimTests %>% 
-  inner_join(dimDogs, by = "dog_name") %>%
-  filter(dog_name %in% "Layla", str_detect(test_category, "medical")) %>%
-  rename(content = test_name, start = test_date_performed, title = test_result, category = test_category) %>%
-  select(dog_name, facility_name, start, title, content, category) %>% 
-  mutate(group = "test") 
-
-grouped_data <- timeline_visits %>% 
-  bind_rows(timeline_tests)
-
 # all_data <- dimVisits %>% 
 #   left_join(dimDogs, by = "dog_name") %>% 
 #   left_join(dimVets, by = "facility_name") %>% 
@@ -86,27 +69,40 @@ ui <- fluidPage(
                  width = 2),
     
     # Outputs
-    mainPanel(tabsetPanel(tabPanel("Medical History", 
-                                   wellPanel(h4("Medical History Timeline"),
+    mainPanel(width = 10, tabsetPanel(tabPanel("Medical History", 
+                                   wellPanel(h4("Medical History and Tests Timeline"),
                                              timevisOutput("med_history_timeline"),
-                                             actionButton("fit", "Reset view")),
-                                             # h4("Test History Timeline"),
-                                             # timevisOutput("test_history_timeline")
-                                             # ),
-                                   fluidRow(column(6, wellPanel(h4("Vets"), 
-                                                                dataTableOutput(outputId = "vets_table")
-                                                                )
-                                                   ),
-                                            column(6, wellPanel(h4("Current Medications"), 
+                                             actionButton("medfit", "Reset view")),
+                                   fluidRow(column(6, wellPanel(h4("Current Medications"), 
                                                                 dataTableOutput(outputId = "current_meds_table")
                                                                 )
+                                                   ),
+                                            column(6, wellPanel(h4("Past Medications"), 
+                                                                dataTableOutput(outputId = "past_meds_table")
+                                                                )
                                                    )
+                                            ),
+                                   wellPanel(h4("Vets"), 
+                                             dataTableOutput(outputId = "vets_table")
+                                             )
+                                   ), 
+                                   tabPanel("Vaccine History",
+                                            wellPanel(h4("Vaccine Timeline"),
+                                                      checkboxGroupInput(inputId = "vacc",
+                                                                         label = NULL,
+                                                                         choices = c("Current Vaccines" = "Y", 
+                                                                                     "Past Vaccines" = "N"),
+                                                                         selected = "Y"
+                                                                         ),
+                                                      timevisOutput("vaccine_history_timeline"),
+                                                      actionButton("vaccinefit", "Reset view")
+                                                      )
                                             )
-                                   )
-                          ), width = 10
+                          )
               )
     )
   )
+
 
 # Server
 server <- function(input, output) {
@@ -185,70 +181,10 @@ server <- function(input, output) {
   })
   
   # reset timeline view
-  observeEvent(input$fit, {
+  observeEvent(input$medfit, {
     fitWindow("med_history_timeline")
   })
   
-  # # Create medical history timeline
-  # output$med_history_timeline <- renderTimevis({
-  #   req(input$pet)
-  #   config <- list(
-  #     orientation = "top",
-  #     multiselect = TRUE
-  #     )
-  #   
-  #   dimVisits %>% 
-  #     inner_join(dimDogs, by = "dog_name") %>% 
-  #     filter(dog_name %in% input$pet, str_detect(visit_category, "medical")) %>%
-  #     rename(id = visit_id, content = med_visit_summary, start = visit_date) %>% 
-  #       mutate(className = case_when(
-  #        visit_category == "medical" ~ "medical",
-  #        visit_category == "medical follow-up" ~ "medical-follow-up",
-  #        visit_category == "medical; routine" ~ "medical",
-  #        visit_category == "medical follow-up; routine" ~ "medical-follow-up"),
-  #        # possibly unite some fields together to make what displays in the title
-  #        title = visit_notes) %>%
-  #     timevis(options = config)
-  #   })
-  # 
-  # # reset timeline view
-  # observeEvent(input$fit, {
-  #   fitWindow("med_history_timeline")
-  # })
-  # 
-  # # Create test history timeline
-  # output$test_history_timeline <- renderTimevis({
-  #   req(input$pet)
-  #   config <- list(
-  #     orientation = "top",
-  #     multiselect = TRUE
-  #   )
-  # 
-  #   dimTests %>%
-  #     inner_join(dimDogs, by = "dog_name") %>%
-  #     filter(dog_name %in% input$pet, str_detect(test_category, "medical")) %>%
-  #     rename(content = test_name, start = test_date_performed) %>%
-  #     mutate(className = case_when(
-  #       test_category == "medical" ~ "medical",
-  #       test_category == "medical follow-up" ~ "medical-follow-up"),
-  #       # possibly unite some fields together to make what displays in the title
-  #       title = test_result) %>%
-  #     timevis(options = config)
-  # })
-  # 
-  
-  # Create tests data table
-  output$med_tests_table <- renderDataTable({
-    req(input$pet)
-    dimVisits %>% 
-      inner_join(dimDogs, by = "dog_name") %>% 
-      inner_join(dimTests, by = c("dog_name", "visit_date" = "test_date_performed", "facility_name")) %>%
-      filter(dog_name %in% input$pet, str_detect(test_category, "medical")) %>% 
-      select(visit_id, visit_date, test_name, test_result) %>% 
-      datatable(options = list(pageLength = 5, dom = 'ltip'),
-                               rownames = FALSE)
-   })
-
   # Create current meds data table
   output$current_meds_table <- renderDataTable({
     req(input$pet)
@@ -265,7 +201,7 @@ server <- function(input, output) {
     dimMeds %>%
       filter(dog_name %in% input$pet, med_current_flag == "N") %>%
       select(med_name, med_start_date) %>% 
-      datatable(options = list(pageLength = 5, dom = 'ltip'),
+      datatable(options = list(pageLength = 5),
                 rownames = FALSE)
   })
   
@@ -279,6 +215,25 @@ server <- function(input, output) {
       distinct() %>% 
       datatable(options = list(pageLength = 10, dom = 'ltip'),
                 rownames = FALSE)
+  })
+  
+  # Create vaccine timeline
+  output$vaccine_history_timeline <- renderTimevis({
+    req(input$pet)
+    
+    dimVaccines %>% 
+      inner_join(dimDogs, by = "dog_name") %>% 
+      filter(dog_name %in% input$pet, vaccine_current_flag %in% input$vacc) %>% 
+      rename(content = vaccine_name, start = vaccine_date_given, end = vaccine_date_expires, title = facility_name) %>% 
+      mutate(className = case_when(
+        vaccine_current_flag == "Y" ~ "current",
+        vaccine_current_flag == "N" ~ "past")) %>% 
+      timevis()
+  })
+  
+  # reset timeline view
+  observeEvent(input$vaccinefit, {
+    fitWindow("vaccine_history_timeline")
   })
 }
 
