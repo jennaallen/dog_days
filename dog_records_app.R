@@ -2,6 +2,8 @@ library(shiny)
 library(tidyverse)
 library(timevis)
 library(DT)
+library(aws.s3)
+library(magick)
 
 # source("utils.R")
 
@@ -50,8 +52,8 @@ ui <- fluidPage(
                  hr(), # horizontal line for visual separation
                  
                  # display relevent pet information
-                 htmlOutput("pet_image"),
-                 br(),
+                 imageOutput("pet_image", inline = TRUE),
+                 br(), br(),
                  htmlOutput("pet_info"), 
                  
                  hr(), # horizontal line for visual separation
@@ -179,15 +181,23 @@ ui <- fluidPage(
 # Server
 server <- function(input, output) {
   
-  # Get pet image
-  output$pet_image <- renderText({
+  # Get pet image to be displayed in sidepanel
+  output$pet_image <- renderImage({
     req(input$pet)
-    image <- dimDogs %>% 
+    tmpfile <- dimDogs %>% 
       filter(dog_name %in% input$pet) %>% 
-      pull(picture)
-    paste("<img src = ",'"',image,'", height = "30px">', sep = "")
-   })
-  
+      select(picture) %>% 
+      str_replace("https://s3.amazonaws.com", "s3:/") %>% 
+      get_object() %>% 
+      image_read() %>% 
+      image_write(tempfile(fileext = 'png'), format = 'png')
+    
+    # Return a list
+    list(src = tmpfile, 
+         height = "200px", 
+         contentType = "image/png")
+   }, deleteFile = TRUE)
+
   # Create pet info to be displayed in sidepanel
   output$pet_info <- renderText({
     req(input$pet)
@@ -210,7 +220,7 @@ server <- function(input, output) {
     paste(dob, species, breed, sex, color, sep = "<br>")
   })
   
-  # Create med history timeline
+  # Create medical history timeline
   output$med_history_timeline <- renderTimevis({
     req(input$pet)
     config <- list(
@@ -237,27 +247,25 @@ server <- function(input, output) {
     fitWindow("med_history_timeline")
   })
   
-  # Create med history timeline
-  # output$vaccine_history_timeline <- renderTimevis({
-  #   req(input$pet)
-  #   config <- list(
-  #     orientation = "top",
-  #     multiselect = TRUE
-  #   )
-  #   
-  #   dimVisits %>% 
-  #     inner_join(dimDogs, by = "dog_name") %>% 
-  #     filter(dog_name %in% input$pet, str_detect(visit_category, "medical")) %>%
-  #     rename(id = visit_id, content = med_visit_summary, start = visit_date) %>% 
-  #     mutate(className = case_when(
-  #       visit_category == "medical" ~ "medical",
-  #       visit_category == "medical follow-up" ~ "medical-follow-up",
-  #       visit_category == "medical; routine" ~ "medical",
-  #       visit_category == "medical follow-up; routine" ~ "medical-follow-up"),
-  #       # possibly unite some fields together to make what displays in the title
-  #       title = visit_notes) %>%
-  #     timevis(options = config)
-  # })
+  # Create test history timeline
+  output$test_history_timeline <- renderTimevis({
+    req(input$pet)
+    config <- list(
+      orientation = "top",
+      multiselect = TRUE
+    )
+
+    dimTests %>%
+      inner_join(dimDogs, by = "dog_name") %>%
+      filter(dog_name %in% input$pet, str_detect(test_category, "medical")) %>%
+      rename(content = test_name, start = test_date_performed) %>%
+      mutate(className = case_when(
+        visit_category == "medical" ~ "medical",
+        visit_category == "medical follow-up" ~ "medical-follow-up"),
+        # possibly unite some fields together to make what displays in the title
+        title = test_result) %>%
+      timevis(options = config)
+  })
   
   
   # Create tests data table
@@ -265,7 +273,7 @@ server <- function(input, output) {
     req(input$pet)
     dimVisits %>% 
       inner_join(dimDogs, by = "dog_name") %>% 
-      inner_join(dimTests, by = c("dog_name", "visit_date" = "test_date_given", "facility_name")) %>%
+      inner_join(dimTests, by = c("dog_name", "visit_date" = "test_date_performed", "facility_name")) %>%
       filter(dog_name %in% input$pet, str_detect(test_category, "medical")) %>% 
       select(visit_id, visit_date, test_name, test_result) %>% 
       datatable(options = list(pageLength = 5, dom = 'ltip'),
