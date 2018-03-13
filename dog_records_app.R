@@ -3,7 +3,7 @@ library(tidyverse)
 library(timevis)
 library(DT)
 library(aws.s3)
-library(aws.signature)
+library(sparkline)
 library(magick)
 
 # source("utils.R")
@@ -55,6 +55,7 @@ ui <- fluidPage(
                  hr(), # horizontal line for visual separation
                  
                  # display relevent pet information
+                 # htmlOutput("pet_image"),
                  imageOutput("pet_image", inline = TRUE),
                  br(), br(),
                  htmlOutput("pet_info"), 
@@ -101,8 +102,13 @@ ui <- fluidPage(
                                                                          ),
                                                       timevisOutput("vaccine_history_timeline"),
                                                       actionButton("vaccinefit", "Reset view")
-                                                      )
-                                            )
+                                                      ),
+                                            # Show vaccine certificate
+                                            conditionalPanel(condition = "output.show_vaccine_cert", 
+                                                             h3("Vaccine Certificate"),
+                                                             downloadButton("download_vacc", "Download PDF"))
+                                            #imageOutput("vaccine_cert")
+                                            ) 
                           )
               )
     )
@@ -115,17 +121,17 @@ server <- function(input, output) {
   # Get pet image to be displayed in sidepanel
   output$pet_image <- renderImage({
     req(input$pet)
-    tmpfile <- dimDogs %>% 
-      filter(dog_name %in% input$pet) %>% 
-      select(picture) %>% 
-      str_replace("https://s3.amazonaws.com", "s3:/") %>% 
-      get_object() %>% 
-      image_read() %>% 
-      image_write(tempfile(fileext = 'png'), format = 'png')
-    
+    tmpfile <- dimDogs %>%
+      filter(dog_name %in% input$pet) %>%
+      select(picture) %>%
+      str_replace("https://s3.amazonaws.com", "s3:/") %>%
+      get_object() %>%
+      image_read() %>%
+      image_write(tempfile(fileext = ".png"), format = "png")
+
     # Return a list
-    list(src = tmpfile, 
-         height = "200px", 
+    list(src = tmpfile,
+         height = "200px",
          contentType = "image/png")
    }, deleteFile = TRUE)
 
@@ -261,20 +267,33 @@ vac %>%
     fitWindow("vaccine_history_timeline")
   })
   
-  # show vaccine related file if vaccine is selected in timeline
-  output$vaccine_cert <- renderDataTable({
-    req(input$pet)
-    if (!is.null(input$vaccine_history_timeline_selected)) {
-      #tmpfile <-
-      input$vaccine_history_timeline_data %>% 
-          select(doc) %>% 
-          str_replace("https://s3.amazonaws.com", "s3:/") %>% 
-          get_object() %>% 
-          image_read() %>% 
-          image_write(tempfile(fileext = 'png'), format = 'png')
-    }
+  # create server to ui variable for vaccine certification conditional panel
+  output$show_vaccine_cert <- reactive({
+    !is.null(input$vaccine_history_timeline_selected)
   })
+  outputOptions(output, "show_vaccine_cert", suspendWhenHidden = FALSE)
   
+  # show vaccine related file if vaccine is selected in timeline
+  # output$vaccine_cert <- renderImage({
+  #   req(input$pet)
+  #   if (!is.null(input$vaccine_history_timeline_selected)) {
+  #     tmpfile <- input$vaccine_history_timeline_data %>%
+  #       select(doc) %>%
+  #       str_replace("https://s3.amazonaws.com", "s3:/") %>% 
+  #       get_object()
+  #   }
+  #    
+  # })
+  
+  # Download vaccine certificate
+  output$download_vacc <- downloadHandler(
+    filename = function() {
+      "vaccine_cert.pdf"
+    },
+    content = function(file) { 
+        write_csv(movies %>% select(input$selected_var), file) 
+    }
+  )
   
 }
 
