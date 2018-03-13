@@ -3,6 +3,7 @@ library(tidyverse)
 library(timevis)
 library(DT)
 library(aws.s3)
+library(aws.signature)
 library(magick)
 
 # source("utils.R")
@@ -219,7 +220,7 @@ server <- function(input, output) {
                 rownames = FALSE)
   })
   
-  # Create vest data table
+  # Create vets data table
   output$vets_table <- renderDataTable({
     req(input$pet)
     dimVisits %>%
@@ -237,12 +238,12 @@ server <- function(input, output) {
     
     vac <- dimVaccines %>% 
       inner_join(dimDogs, by = "dog_name") %>% 
-      select(dog_name, content = vaccine_name, start = vaccine_date_given, end = vaccine_date_expires, title = facility_name, current_flag = vaccine_current_flag)
+      select(dog_name, content = vaccine_name, start = vaccine_date_given, end = vaccine_date_expires, title = facility_name, current_flag = vaccine_current_flag, doc = vaccine_certification)
     
     tests <- dimTests %>% 
       inner_join(dimDogs, by = "dog_name") %>%
       filter(!is.na(test_current_flag)) %>% 
-      select(dog_name, content = test_name, start = test_date_performed, end = test_date_expires, title = facility_name, current_flag = test_current_flag) 
+      select(dog_name, content = test_name, start = test_date_performed, end = test_date_expires, title = facility_name, current_flag = test_current_flag, doc = test_result_doc) 
     
 vac %>% 
     bind_rows(tests) %>% 
@@ -259,6 +260,22 @@ vac %>%
   observeEvent(input$vaccinefit, {
     fitWindow("vaccine_history_timeline")
   })
+  
+  # show vaccine related file if vaccine is selected in timeline
+  output$vaccine_cert <- renderDataTable({
+    req(input$pet)
+    if (!is.null(input$vaccine_history_timeline_selected)) {
+      #tmpfile <-
+      input$vaccine_history_timeline_data %>% 
+          select(doc) %>% 
+          str_replace("https://s3.amazonaws.com", "s3:/") %>% 
+          get_object() %>% 
+          image_read() %>% 
+          image_write(tempfile(fileext = 'png'), format = 'png')
+    }
+  })
+  
+  
 }
 
 # Create a Shiny app object
