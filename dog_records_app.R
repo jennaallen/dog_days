@@ -57,7 +57,8 @@ ui <- fluidPage(
                  imageOutput("pet_image", inline = TRUE),
                  br(), br(),
                  htmlOutput("pet_info"), 
-                 br(), br(),
+                 br(),
+                 h5("Weight History (lbs.)"),
                  sparklineOutput("pet_weight"),
                  
                  hr(), # horizontal line for visual separation
@@ -152,8 +153,8 @@ server <- function(input, output) {
   # Create pet weight history sparkline
   output$pet_weight <- renderSparkline({
     dimVisits %>% 
-      select(dog_name, visit_weight) %>% 
-      filter(dog_name == "Layla", !is.na(visit_weight)) %>% 
+      select(dog_name, visit_date, visit_weight) %>% 
+      filter(dog_name == input$pet, !is.na(visit_weight)) %>% 
       pull(visit_weight) %>% 
       sparkline(width = "100%", height = "100px", spotRadius = 10, highlightSpotColor = "#14c8fd", fillColor = FALSE) #, highlightLineColor = , lineColor = , )
   })
@@ -245,11 +246,12 @@ server <- function(input, output) {
     
 vac %>% 
     bind_rows(tests) %>% 
+  rowid_to_column(var = "id") %>% 
       filter(dog_name %in% input$pet, current_flag %in% input$vacc) %>% 
     mutate(className = case_when(
       current_flag == "Y" ~ "current",
       current_flag == "N" ~ "past"),
-    title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", title, sep = "")) %>% 
+    title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", title,"\n",id, sep = "")) %>% 
     timevis()
   })
   
