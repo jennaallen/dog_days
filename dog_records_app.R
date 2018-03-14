@@ -79,15 +79,15 @@ ui <- fluidPage(
                                    wellPanel(h4("Medical History and Tests Timeline"),
                                              timevisOutput("med_history_timeline"),
                                              actionButton("medfit", "Reset view")),
-                                   fluidRow(column(6, wellPanel(h4("Current Medications"), 
-                                                                dataTableOutput(outputId = "current_meds_table")
-                                                                )
-                                                   ),
-                                            column(6, wellPanel(h4("Past Medications"), 
-                                                                dataTableOutput(outputId = "past_meds_table")
-                                                                )
-                                                   )
-                                            ),
+                                   # fluidRow(column(6, wellPanel(h4("Current Medications"), 
+                                   #                              dataTableOutput(outputId = "current_meds_table")
+                                   #                              )
+                                   #                 ),
+                                   #          column(6, wellPanel(h4("Past Medications"), 
+                                   #                              dataTableOutput(outputId = "past_meds_table")
+                                   #                              )
+                                   #                 )
+                                   #          ),
                                    wellPanel(h4("Vets"), 
                                              dataTableOutput(outputId = "vets_table")
                                              )
@@ -106,9 +106,22 @@ ui <- fluidPage(
                                             # Show vaccine certificate
                                             conditionalPanel(condition = "output.show_vaccine_cert", 
                                                              h3("Vaccine Certificate"),
-                                                             downloadButton("download_vacc", "Download PDF")),
+                                                             br(),
+                                                             downloadButton("download_vacc", "Download PDF"),
+                                                             br(), br()),
                                             uiOutput("vaccine_cert")
-                                            ) 
+                                            ),
+                                   tabPanel("Medication History",
+                                            fluidRow(column(6, wellPanel(h4("Current Medications"), 
+                                                                         dataTableOutput(outputId = "current_meds_table")
+                                                                         )
+                                                            ),
+                                                     column(6, wellPanel(h4("Past Medications"), 
+                                                                         dataTableOutput(outputId = "past_meds_table")
+                                                                         )
+                                                            )
+                                                     )
+                                            )
                           )
               )
     )
@@ -295,10 +308,10 @@ vac %>%
         get_object() %>% 
         writeBin("www/test.pdf") # tempfile(fileext = ".pdf")
       tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
-    } else
-        HTML("No Vaccine Certification available")
-
+    } else {
+        h4("No Vaccine Certification available")
     }
+  }
 
   })
   
@@ -312,6 +325,11 @@ vac %>%
     }
   )
   
+  # clear selection if different dog is chosen not quite sure how to do this, get warning of argument is length zero
+  # eventReactive(input$pet, {
+  #   input$vaccine_history_timeline_selected <- NULL
+  # })
+    
 }
 
 # Create a Shiny app object
