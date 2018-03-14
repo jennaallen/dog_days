@@ -106,8 +106,8 @@ ui <- fluidPage(
                                             # Show vaccine certificate
                                             conditionalPanel(condition = "output.show_vaccine_cert", 
                                                              h3("Vaccine Certificate"),
-                                                             downloadButton("download_vacc", "Download PDF"))
-                                            #imageOutput("vaccine_cert")
+                                                             downloadButton("download_vacc", "Download PDF")),
+                                            uiOutput("vaccine_cert")
                                             ) 
                           )
               )
@@ -274,26 +274,34 @@ vac %>%
   outputOptions(output, "show_vaccine_cert", suspendWhenHidden = FALSE)
   
   # show vaccine related file if vaccine is selected in timeline
-  # output$vaccine_cert <- renderImage({
-  #   req(input$pet)
-  #   if (!is.null(input$vaccine_history_timeline_selected)) {
-  #     tmpfile <- input$vaccine_history_timeline_data %>%
-  #       select(doc) %>%
-  #       str_replace("https://s3.amazonaws.com", "s3:/") %>% 
-  #       get_object()
-  #   }
-  #    
-  # })
+  output$vaccine_cert <- renderUI({
+    req(input$pet)
+    if (!is.null(input$vaccine_history_timeline_selected)) {
+    tmpfile <- input$vaccine_history_timeline_data %>%
+        filter(id == input$vaccine_history_timeline_selected) %>% 
+        select(doc) %>%
+        str_replace("https://s3.amazonaws.com", "s3:/") #%>%
+        # save_object("s3://pet-records/vaccine-certifications/20180212_lloyd.pdf", file = tempfile(fileext = ".pdf"))
+       # get_object() #%>% 
+         con <- rawConnection(get_object(tmpfile), "r+")
+       # writeBin("www/test.pdf")
+        tags$iframe(style = "height:600px; width:100%", src = con)
+        # readBin(what = "raw")
+        # writeBin(test_file, "www/myreport.pdf")
+    }
+
+  })
   
   # Download vaccine certificate
-  output$download_vacc <- downloadHandler(
-    filename = function() {
-      "vaccine_cert.pdf"
-    },
-    content = function(file) { 
-        write_csv(movies %>% select(input$selected_var), file) 
-    }
-  )
+  # output$download_vacc <- downloadHandler(
+  #   filename = function() {
+  #     "vaccine_cert.pdf"
+  #   },
+  #   content = function(file) { 
+  #       write_csv(movies %>% select(input$selected_var), file) 
+  #    writeBin(test_file, “www/myreport.pdf”)
+  #   }
+  # )
   
 }
 
