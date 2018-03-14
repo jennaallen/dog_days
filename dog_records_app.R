@@ -269,23 +269,31 @@ vac %>%
   
   # create server to ui variable for vaccine certification conditional panel
   output$show_vaccine_cert <- reactive({
-    !is.null(input$vaccine_history_timeline_selected)
+    if (!is.null(input$vaccine_history_timeline_selected)) {
+    show_cert <- input$vaccine_history_timeline_data %>%
+      filter(id == input$vaccine_history_timeline_selected) %>%
+      pull(doc)
+    } else {
+      show_cert <- NA
+    }
+    
+    !is.null(input$vaccine_history_timeline_selected) & !is.na(show_cert)
   })
   outputOptions(output, "show_vaccine_cert", suspendWhenHidden = FALSE)
   
   # show vaccine related file if vaccine is selected in timeline
   output$vaccine_cert <- renderUI({
-    req(input$pet)
-    if (!is.null(input$vaccine_history_timeline_selected)) {
-    doc <- input$vaccine_history_timeline_data %>%
-        filter(id == input$vaccine_history_timeline_selected) %>% 
-        select(doc) 
     
-    if (!is.na(doc)) {
-      doc %>% 
+    if (!is.null(input$vaccine_history_timeline_selected)) {
+    cert <- input$vaccine_history_timeline_data %>%
+        filter(id == input$vaccine_history_timeline_selected) %>% 
+        pull(doc)
+    
+    if (!is.na(cert)) {
+      cert %>% 
       str_replace("https://s3.amazonaws.com", "s3:/") %>%
         get_object() %>% 
-        writeBin("www/test.pdf")
+        writeBin("www/test.pdf") # tempfile(fileext = ".pdf")
       tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
     } else
         HTML("No Vaccine Certification available")
@@ -295,15 +303,14 @@ vac %>%
   })
   
   # Download vaccine certificate
-  # output$download_vacc <- downloadHandler(
-  #   filename = function() {
-  #     "vaccine_cert.pdf"
-  #   },
-  #   content = function(file) { 
-  #       write_csv(movies %>% select(input$selected_var), file) 
-  #    writeBin(test_file, “www/myreport.pdf”)
-  #   }
-  # )
+  output$download_vacc <- downloadHandler(
+    filename = function() {
+      "vaccine_cert.pdf"
+    },
+    content = function(file) {
+        file.copy("www/test.pdf", file)
+    }
+  )
   
 }
 
