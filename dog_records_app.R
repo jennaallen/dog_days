@@ -277,17 +277,19 @@ vac %>%
   output$vaccine_cert <- renderUI({
     req(input$pet)
     if (!is.null(input$vaccine_history_timeline_selected)) {
-    tmpfile <- input$vaccine_history_timeline_data %>%
+    doc <- input$vaccine_history_timeline_data %>%
         filter(id == input$vaccine_history_timeline_selected) %>% 
-        select(doc) %>%
-        str_replace("https://s3.amazonaws.com", "s3:/") #%>%
-        # save_object("s3://pet-records/vaccine-certifications/20180212_lloyd.pdf", file = tempfile(fileext = ".pdf"))
-       # get_object() #%>% 
-         con <- rawConnection(get_object(tmpfile), "r+")
-       # writeBin("www/test.pdf")
-        tags$iframe(style = "height:600px; width:100%", src = con)
-        # readBin(what = "raw")
-        # writeBin(test_file, "www/myreport.pdf")
+        select(doc) 
+    
+    if (!is.na(doc)) {
+      doc %>% 
+      str_replace("https://s3.amazonaws.com", "s3:/") %>%
+        get_object() %>% 
+        writeBin("www/test.pdf")
+      tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
+    } else
+        HTML("No Vaccine Certification available")
+
     }
 
   })
