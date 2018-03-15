@@ -37,6 +37,9 @@ all_pets <- sort(unique(dimDogs$dog_name))
 # UI
 ui <- fluidPage(
    theme = shinytheme("lumen"),
+   tags$style("table.dataTable tr.selected td, table.dataTable td.selected {
+              background-color: #bddfec !important;
+              }"),
   # use custom css
     tags$head(
       tags$link(href = "style.css", rel = "stylesheet")
@@ -179,7 +182,16 @@ server <- function(input, output) {
       select(dog_name, visit_date, visit_weight) %>% 
       filter(dog_name == input$pet, !is.na(visit_weight)) %>% 
       pull(visit_weight) %>% 
-      sparkline(width = "98%", height = "100px", spotRadius = 7, highlightSpotColor = "#14c8fd", fillColor = FALSE) #, highlightLineColor = , lineColor = , )
+      sparkline(width = "98%", 
+                height = "100px", 
+                spotRadius = 7, 
+                highlightSpotColor = "#999", 
+                fillColor = FALSE, 
+                lineColor = "#158CBA", 
+                highlightLineColor = "#fd7e14",
+                lineWidth = 3,
+                maxSpotColor = "#fd7e14",
+                minSpotColor = "#fd7e14")
   })
   
   

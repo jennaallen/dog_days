@@ -6,6 +6,10 @@
 }
 
 
+h4, h5 {
+  color: #158CBA;
+}
+
 #med_history_timeline {
   box-shadow: 2px 2px 3px #444;
 }
@@ -25,17 +29,17 @@
 }*/
 
 #med_history_timeline .vis-item.medical {
-  border-color: #1170AA;  /*this controls the line and dot color
-  background-color: pink; controls color of item box
-  font-size: 15pt; controls font of item
-  color: purple; control text color of item text*/ 
+  border-color: #158CBA;  /*this controls the line and dot color*/
+  background-color: #4abeeb; /*controls color of item box*/
+  /*font-size: 15pt; controls font of item*/
+  color:  #fff; /*control text color of item text*/
 }
 
 #med_history_timeline .vis-item.medical-follow-up {
-  border-color: #FE7D00;  /*this controls the line and dot color
-  background-color: pink; controls color of item box
-  font-size: 15pt; controls font of item
-  color: purple; control text color of item text*/ 
+  border-color: #FF851B;  
+  background-color: #ffa04e; /*controls color of item box
+  font-size: 15pt; controls font of item*/
+  color: #fff; 
 }
 
 /*#timeline .vis-item.routine {
@@ -45,14 +49,14 @@
   color: purple; control text color of item text
 }*/
 
-#med_history_timeline .vis-item {
-  /*border-color: #F991A3; this controls the line and dot color
+/*#med_history_timeline .vis-item {
+  border-color: #F991A3; this controls the line and dot color
   background-color: pink; controls color of item box
   font-size: 15pt; controls font of item
-  color: purple; control text color of item text*/ 
+  color: purple; control text color of item text 
   box-shadow: 5px 5px 20px rgba(128,128,128, 0.5);
-  border-width: 1px; /*controls border around item */
-}
+  border-width: 1px; /*controls border around item
+}*/
 
 #vaccine_history_timeline .vis-item {
   /*border-color: #F991A3; this controls the line and dot color
