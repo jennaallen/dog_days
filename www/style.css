@@ -1,6 +1,17 @@
+.nav-tabs > li > a, 
+.nav-tabs > li.active > a, 
+.nav-tabs > li.active > a:focus, 
+.nav-tabs > li.active > a:hover {
+    color: #158CBA;
+}
+
+
 #med_history_timeline {
   box-shadow: 2px 2px 3px #444;
-  margin-bottom: 30px;
+}
+
+#vaccine_history_timeline {
+  box-shadow: 2px 2px 3px #444;
 }
 
 /*#med_history_timeline {
@@ -35,6 +46,15 @@
 }*/
 
 #med_history_timeline .vis-item {
+  /*border-color: #F991A3; this controls the line and dot color
+  background-color: pink; controls color of item box
+  font-size: 15pt; controls font of item
+  color: purple; control text color of item text*/ 
+  box-shadow: 5px 5px 20px rgba(128,128,128, 0.5);
+  border-width: 1px; /*controls border around item */
+}
+
+#vaccine_history_timeline .vis-item {
   /*border-color: #F991A3; this controls the line and dot color
   background-color: pink; controls color of item box
   font-size: 15pt; controls font of item

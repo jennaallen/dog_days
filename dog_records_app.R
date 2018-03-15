@@ -5,6 +5,7 @@ library(DT)
 library(aws.s3)
 library(sparkline)
 library(magick)
+library(shinythemes)
 
 # source("utils.R")
 
@@ -35,7 +36,7 @@ all_pets <- sort(unique(dimDogs$dog_name))
 
 # UI
 ui <- fluidPage(
-  
+   theme = shinytheme("lumen"),
   # use custom css
     tags$head(
       tags$link(href = "style.css", rel = "stylesheet")
@@ -60,7 +61,7 @@ ui <- fluidPage(
                  br(), br(),
                  htmlOutput("pet_info"), 
                  br(),
-                 h5("Weight History (lbs.)"),
+                 h5(icon("scale", lib = "glyphicon"), "Weight History (lbs.)"),
                  sparklineOutput("pet_weight"),
                  
                  hr(), # horizontal line for visual separation
@@ -75,10 +76,10 @@ ui <- fluidPage(
                  width = 2),
     
     # Outputs
-    mainPanel(width = 10, tabsetPanel(tabPanel("Medical History", 
+    mainPanel(width = 10, tabsetPanel(tabPanel(div(icon("medkit"), "Medical History"), 
                                    wellPanel(h4("Medical History and Tests Timeline"),
                                              timevisOutput("med_history_timeline"),
-                                             actionButton("medfit", "Reset view")),
+                                             actionButton("medfit", "Reset view"))
                                    # fluidRow(column(6, wellPanel(h4("Current Medications"), 
                                    #                              dataTableOutput(outputId = "current_meds_table")
                                    #                              )
@@ -88,11 +89,11 @@ ui <- fluidPage(
                                    #                              )
                                    #                 )
                                    #          ),
-                                   wellPanel(h4("Vets"), 
-                                             dataTableOutput(outputId = "vets_table")
-                                             )
+                                   # wellPanel(h4("Vets"), 
+                                   #           dataTableOutput(outputId = "vets_table")
+                                   #           )
                                    ), 
-                                   tabPanel("Vaccine History",
+                                   tabPanel(div(icon("heartbeat"), "Vaccine History"),
                                             wellPanel(h4("Vaccine Timeline"),
                                                       checkboxGroupInput(inputId = "vacc",
                                                                          label = NULL,
@@ -111,18 +112,20 @@ ui <- fluidPage(
                                                              br(), br()),
                                             uiOutput("vaccine_cert")
                                             ),
-                                   tabPanel("Medication History",
-                                            fluidRow(column(6, wellPanel(h4("Current Medications"), 
-                                                                         dataTableOutput(outputId = "current_meds_table")
-                                                                         )
-                                                            ),
-                                                     column(6, wellPanel(h4("Past Medications"), 
-                                                                         dataTableOutput(outputId = "past_meds_table")
-                                                                         )
-                                                            )
-                                                     )
+                                   tabPanel(div(icon("hospital-o"), "Medication History"),
+                                            wellPanel(h4("Current Medications"), 
+                                                      dataTableOutput(outputId = "current_meds_table")
+                                                      ),
+                                                     wellPanel(h4("Past Medications"), 
+                                                               dataTableOutput(outputId = "past_meds_table")
+                                                               )
+                                            ),
+                                   tabPanel(div(icon("user-md"), "Vet History"),
+                                            wellPanel(h4("Vets"), 
+                                                      dataTableOutput(outputId = "vets_table")
+                                                      )
                                             )
-                          )
+                                   )
               )
     )
   )
@@ -176,7 +179,7 @@ server <- function(input, output) {
       select(dog_name, visit_date, visit_weight) %>% 
       filter(dog_name == input$pet, !is.na(visit_weight)) %>% 
       pull(visit_weight) %>% 
-      sparkline(width = "100%", height = "100px", spotRadius = 10, highlightSpotColor = "#14c8fd", fillColor = FALSE) #, highlightLineColor = , lineColor = , )
+      sparkline(width = "98%", height = "100px", spotRadius = 7, highlightSpotColor = "#14c8fd", fillColor = FALSE) #, highlightLineColor = , lineColor = , )
   })
   
   
@@ -224,7 +227,7 @@ server <- function(input, output) {
     req(input$pet)
     dimMeds %>%
       filter(dog_name %in% input$pet, med_current_flag == "Y") %>%
-      select(med_name, med_start_date) %>% 
+      select(med_name, facility_name, med_start_date, med_dosage, med_dosage_freq, med_category) %>% 
       datatable(options = list(pageLength = 5, dom = 'ltip'),
                 rownames = FALSE)
   })
@@ -234,8 +237,9 @@ server <- function(input, output) {
     req(input$pet)
     dimMeds %>%
       filter(dog_name %in% input$pet, med_current_flag == "N") %>%
-      select(med_name, med_start_date) %>% 
-      datatable(options = list(pageLength = 5),
+      select(med_name, facility_name, med_end_date, med_dosage, med_dosage_freq, med_category) %>% 
+      arrange(desc(med_end_date)) %>% 
+      datatable(options = list(pageLength = 10),
                 rownames = FALSE)
   })
   
@@ -247,6 +251,7 @@ server <- function(input, output) {
       filter(dog_name %in% input$pet) %>%
       select(facility_name, vet_phone, vet_website, vet_email, vet_state) %>% 
       distinct() %>% 
+      arrange(facility_name) %>% 
       datatable(options = list(pageLength = 10, dom = 'ltip'),
                 rownames = FALSE)
   })
@@ -309,7 +314,7 @@ vac %>%
         writeBin("www/test.pdf") # tempfile(fileext = ".pdf")
       tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
     } else {
-        h4("No Vaccine Certification available")
+        h4("No Vaccine Certificate available")
     }
   }
 
@@ -328,6 +333,25 @@ vac %>%
   # clear selection if different dog is chosen not quite sure how to do this, get warning of argument is length zero
   # eventReactive(input$pet, {
   #   input$vaccine_history_timeline_selected <- NULL
+  # })
+  
+  # Create medication history timeline
+  # output$medication_history_timeline <- renderTimevis({
+  #   req(input$pet)
+  #   
+  #   medincines <- dimMeds %>% 
+  #     inner_join(dimDogs, by = "dog_name") %>% 
+  #     filter(dog_name %in% input$pet) %>% 
+  #     rename(content = med_name, start = med_start_date, title = med_category) %>% 
+  #     mutate(group = if_else(med_current_flag == "Y", "current", "past"))
+  #   
+  #   
+  #   groups <- data.frame(
+  #     id = c("current", "past"),
+  #     content = c("Current Medications", "Past Medications")
+  #   )
+  #   
+  #   timevis(medincines, groups = groups)
   # })
     
 }
