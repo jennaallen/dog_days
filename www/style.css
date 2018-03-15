@@ -70,9 +70,9 @@ h3 {
   border-width: 1px; /*controls border around item*/
 }
 
-/*#med_history_timeline .vis-item.vis-line {
-  border-width: 5px; controls line thickness
-}*/
+#med_history_timeline .vis-item.vis-line {
+  border-width: 2px; /*controls line thickness*/
+}
 
 #med_history_timeline .vis-item.vis-dot {
   border-width: 5px;

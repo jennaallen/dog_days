@@ -192,11 +192,11 @@ server <- function(input, output) {
                 spotRadius = 7, 
                 highlightSpotColor = "#999", 
                 fillColor = FALSE, 
-                lineColor = "#6f42c1", 
+                lineColor = "#20c997", 
                 highlightLineColor = "#20c997",
                 lineWidth = 3,
-                maxSpotColor = "#20c997",
-                minSpotColor = "#20c997")
+                maxSpotColor = "#6f42c1",
+                minSpotColor = "#6f42c1")
   })
   
   
