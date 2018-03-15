@@ -83,16 +83,21 @@ ui <- fluidPage(
                                    wellPanel(h3("Medical History and Tests Timeline"),
                                              br(),
                                              timevisOutput("med_history_timeline"),
-                                             actionButton("medfit", "Reset view"))
-                                   # fluidRow(column(6, wellPanel(h3("Current Medications"), 
-                                   #                              dataTableOutput(outputId = "current_meds_table")
-                                   #                              )
-                                   #                 ),
+                                             actionButton("medfit", "Reset view")),
+                                   conditionalPanel(condition = "output.show_visit_details", fluidRow(column(4, wellPanel(h3("Visit Details"),
+                                                                                                                          htmlOutput(outputId = "visit_info")
+                                                                                                                          )
+                                                                                                             ),
+                                                                                                      column(4, wellPanel(h3("Tests Performed"),
+                                                                                                                          htmlOutput(outputId = "test_info")
+                                                                                                      )),
+                                                                                                      column(4, wellPanel(h3("Prescribed Medications"),
+                                                                                                                          htmlOutput(outputId = "medication_info")))
                                    #          column(6, wellPanel(h3("Past Medications"), 
                                    #                              dataTableOutput(outputId = "past_meds_table")
                                    #                              )
                                    #                 )
-                                   #          ),
+                                   ))
                                    # wellPanel(h3("Vets"), 
                                    #           dataTableOutput(outputId = "vets_table")
                                    #           )
@@ -207,16 +212,18 @@ server <- function(input, output) {
     timeline_visits <- dimVisits %>% 
       inner_join(dimDogs, by = "dog_name") %>% 
       filter(dog_name %in% input$pet, str_detect(visit_category, "medical")) %>% 
+      mutate(group = "med",
+             id = paste(visit_id, group, sep = "_")) %>% 
       rename(content = med_visit_summary, start = visit_date, title = visit_notes, category = visit_category) %>% 
-      select(dog_name, facility_name, start, title, content, category) %>% 
-      mutate(group = "med")
+      select(id, dog_name, facility_name, start, title, content, category, group) 
     
     timeline_tests <- dimTests %>% 
       inner_join(dimDogs, by = "dog_name") %>%
       filter(dog_name %in% input$pet, str_detect(test_category, "medical")) %>%
+      mutate(group = "test",
+             id = paste(test_id, group, sep = "_")) %>% 
       rename(content = test_name, start = test_date_performed, title = test_result, category = test_category) %>%
-      select(dog_name, facility_name, start, title, content, category) %>% 
-      mutate(group = "test") 
+      select(id, dog_name, facility_name, start, title, content, category, group) 
     
     grouped_data <- timeline_visits %>% 
       bind_rows(timeline_tests) %>% 
@@ -233,6 +240,77 @@ server <- function(input, output) {
   # reset timeline view
   observeEvent(input$medfit, {
     fitWindow("med_history_timeline")
+  })
+  
+  # create server to ui variable for visit details conditional panel
+  output$show_visit_details <- reactive({
+    !is.null(input$med_history_timeline_selected)
+  })
+  outputOptions(output, "show_visit_details", suspendWhenHidden = FALSE)
+  
+  
+  output$visit_info <- renderText({
+    
+    if (!is.null(input$med_history_timeline_selected)) {
+      id <- input$med_history_timeline_data %>%
+        filter(group == "med", id == input$med_history_timeline_selected) %>% 
+        select(id) %>% 
+        mutate(id = str_extract(id, "\\d+")) %>% 
+        pull() %>% 
+        as.integer()
+        
+      # could join visits with vet info to get vet phone and include it here
+      date <- paste(strong("Visit Date:"), dimVisits %>% 
+                      filter(visit_id == id) %>% 
+                      pull(visit_date))
+      notes <- paste(strong("Visit Information:"), dimVisits %>% 
+                       filter(visit_id == id) %>% 
+                       pull(visit_notes))
+      vet <- paste(strong("Vet:"), dimVisits %>% 
+                     filter(visit_id == id) %>% 
+                     pull(facility_name))
+      paste(date, notes, vet, sep = "<br>")
+    }
+  })
+  
+  output$test_info <- renderText({
+    
+    if (!is.null(input$med_history_timeline_selected)) {
+      id <- input$med_history_timeline_data %>%
+        filter(group == "med", id == input$med_history_timeline_selected) %>% 
+        select(id) %>% 
+        mutate(id = str_extract(id, "\\d+")) %>% 
+        pull() %>% 
+        as.integer()
+      
+      # could join visits with vet info to get vet phone and include it here
+      tests <- dimVisits %>% 
+                       left_join(dimTests, by = c("dog_name", "facility_name", "visit_date")) %>% 
+                      filter(visit_id == id) %>% 
+                      pull(test_name) %>% 
+        paste(collapse  = "<br>")
+    }
+  })
+  
+  output$medication_info <- renderText({
+    
+    if (!is.null(input$med_history_timeline_selected)) {
+      id <- input$med_history_timeline_data %>%
+        filter(group == "med", id == input$med_history_timeline_selected) %>% 
+        select(id) %>% 
+        mutate(id = str_extract(id, "\\d+")) %>% 
+        pull() %>% 
+        as.integer()
+      
+      # could join visits with vet info to get vet phone and include it here
+      tests <- dimVisits %>% 
+        left_join(dimMeds, by = c("dog_name", "facility_name", "visit_date")) %>% 
+        filter(visit_id == id, !(med_category %in% "flea and tick")) %>% 
+        select(med_name) %>% 
+        distinct() %>% 
+        pull() %>% 
+        paste(collapse  = "<br>")
+    }
   })
   
   # Create current meds data table
