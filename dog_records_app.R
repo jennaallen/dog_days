@@ -80,30 +80,32 @@ ui <- fluidPage(
     
     # Outputs
     mainPanel(width = 10, tabsetPanel(tabPanel(div(icon("medkit"), "Medical History"), 
-                                   wellPanel(h4("Medical History and Tests Timeline"),
+                                   wellPanel(h3("Medical History and Tests Timeline"),
+                                             br(),
                                              timevisOutput("med_history_timeline"),
                                              actionButton("medfit", "Reset view"))
-                                   # fluidRow(column(6, wellPanel(h4("Current Medications"), 
+                                   # fluidRow(column(6, wellPanel(h3("Current Medications"), 
                                    #                              dataTableOutput(outputId = "current_meds_table")
                                    #                              )
                                    #                 ),
-                                   #          column(6, wellPanel(h4("Past Medications"), 
+                                   #          column(6, wellPanel(h3("Past Medications"), 
                                    #                              dataTableOutput(outputId = "past_meds_table")
                                    #                              )
                                    #                 )
                                    #          ),
-                                   # wellPanel(h4("Vets"), 
+                                   # wellPanel(h3("Vets"), 
                                    #           dataTableOutput(outputId = "vets_table")
                                    #           )
                                    ), 
                                    tabPanel(div(icon("heartbeat"), "Vaccine History"),
-                                            wellPanel(h4("Vaccine Timeline"),
+                                            wellPanel(h3("Vaccine Timeline"),
                                                       checkboxGroupInput(inputId = "vacc",
                                                                          label = NULL,
                                                                          choices = c("Current Vaccines" = "Y", 
                                                                                      "Past Vaccines" = "N"),
                                                                          selected = "Y"
                                                                          ),
+                                                      br(),
                                                       timevisOutput("vaccine_history_timeline"),
                                                       actionButton("vaccinefit", "Reset view")
                                                       ),
@@ -116,15 +118,18 @@ ui <- fluidPage(
                                             uiOutput("vaccine_cert")
                                             ),
                                    tabPanel(div(icon("hospital-o"), "Medication History"),
-                                            wellPanel(h4("Current Medications"), 
+                                            wellPanel(h3("Current Medications"),
+                                                      br(),
                                                       dataTableOutput(outputId = "current_meds_table")
                                                       ),
-                                                     wellPanel(h4("Past Medications"), 
+                                                     wellPanel(h3("Past Medications"), 
+                                                               br(),
                                                                dataTableOutput(outputId = "past_meds_table")
                                                                )
                                             ),
                                    tabPanel(div(icon("user-md"), "Vet History"),
-                                            wellPanel(h4("Vets"), 
+                                            wellPanel(h3("Vets"), 
+                                                      br(),
                                                       dataTableOutput(outputId = "vets_table")
                                                       )
                                             )
@@ -187,11 +192,11 @@ server <- function(input, output) {
                 spotRadius = 7, 
                 highlightSpotColor = "#999", 
                 fillColor = FALSE, 
-                lineColor = "#158CBA", 
-                highlightLineColor = "#fd7e14",
+                lineColor = "#6f42c1", 
+                highlightLineColor = "#20c997",
                 lineWidth = 3,
-                maxSpotColor = "#fd7e14",
-                minSpotColor = "#fd7e14")
+                maxSpotColor = "#20c997",
+                minSpotColor = "#20c997")
   })
   
   
@@ -215,11 +220,7 @@ server <- function(input, output) {
     
     grouped_data <- timeline_visits %>% 
       bind_rows(timeline_tests) %>% 
-      mutate(className = case_when(
-        category == "medical" ~ "medical",
-        category == "medical follow-up" ~ "medical-follow-up",
-        category == "medical; routine" ~ "medical",
-        category == "medical follow-up; routine" ~ "medical-follow-up"))
+      mutate(className = group)
     
     groups <- data.frame(
       id = c("med", "test"),
@@ -326,7 +327,7 @@ vac %>%
         writeBin("www/test.pdf") # tempfile(fileext = ".pdf")
       tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
     } else {
-        h4("No Vaccine Certificate available")
+        h3("No Vaccine Certificate available")
     }
   }
 
