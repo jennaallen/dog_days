@@ -244,7 +244,29 @@ server <- function(input, output) {
   
   # create server to ui variable for visit details conditional panel
   output$show_visit_details <- reactive({
-    !is.null(input$med_history_timeline_selected)
+    
+    if (!is.null(input$med_history_timeline_selected)) {
+      get_group <- input$med_history_timeline_data %>% 
+        filter(id == input$med_history_timeline_selected) %>% 
+        pull(group)
+    }
+    
+    !is.null(input$med_history_timeline_selected) & get_group == "med"
+    
+  })
+  outputOptions(output, "show_visit_details", suspendWhenHidden = FALSE)
+  
+  # create server to ui variable for visit details conditional panel
+  output$show_test_results <- reactive({
+    
+    if (!is.null(input$med_history_timeline_selected)) {
+      get_group <- input$med_history_timeline_data %>% 
+        filter(id == input$med_history_timeline_selected) %>% 
+        pull(group)
+    }
+    
+    !is.null(input$med_history_timeline_selected) & get_group == "test"
+    
   })
   outputOptions(output, "show_visit_details", suspendWhenHidden = FALSE)
   
