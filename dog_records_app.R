@@ -278,9 +278,7 @@ server <- function(input, output) {
       dimTests %>%
         filter(test_id == id()) %>%
         pull(test_result_doc)
-    } else {
-      NA
-    }
+     }
   })
 
   # create server to ui variable for visit details conditional panel
@@ -356,11 +354,21 @@ server <- function(input, output) {
           writeBin("www/test_result.pdf") # tempfile(fileext = ".pdf")
         tags$iframe(style = "height:1400px; width:100%", src = "test_result.pdf")
       } else {
-        h3("No Vaccine Certificate Available")
+        h3("No Test Results Available")
       }
     }
 
   })
+  
+  # Download test results
+  output$download_test_results <- downloadHandler(
+    filename = function() {
+      "test_result.pdf"
+    },
+    content = function(file) {
+      file.copy("www/test_result.pdf", file)
+    }
+  )
   
   # Create current meds data table
   output$current_meds_table <- renderDataTable({
@@ -425,17 +433,17 @@ vac %>%
     fitWindow("vaccine_history_timeline")
   })
   
+  cert <- reactive({
+    if (!is.null(input$vaccine_history_timeline_selected)) {
+    input$vaccine_history_timeline_data %>%
+    filter(id == input$vaccine_history_timeline_selected) %>%
+    pull(doc)
+    }
+  })  
+  
   # create server to ui variable for vaccine certification conditional panel
   output$show_vaccine_cert <- reactive({
-    if (!is.null(input$vaccine_history_timeline_selected)) {
-    show_cert <- input$vaccine_history_timeline_data %>%
-      filter(id == input$vaccine_history_timeline_selected) %>%
-      pull(doc)
-    } else {
-      show_cert <- NA
-    }
-    
-    !is.null(input$vaccine_history_timeline_selected) & !is.na(show_cert)
+    !is.null(input$vaccine_history_timeline_selected) && !is.na(cert())
   })
   outputOptions(output, "show_vaccine_cert", suspendWhenHidden = FALSE)
   
@@ -443,21 +451,18 @@ vac %>%
   output$vaccine_cert <- renderUI({
     
     if (!is.null(input$vaccine_history_timeline_selected)) {
-    cert <- input$vaccine_history_timeline_data %>%
-        filter(id == input$vaccine_history_timeline_selected) %>% 
-        pull(doc)
-    
-    if (!is.na(cert)) {
-      cert %>% 
-      str_replace("https://s3.amazonaws.com", "s3:/") %>%
-        get_object() %>% 
-        writeBin("www/test.pdf") # tempfile(fileext = ".pdf")
-      tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
-    } else {
+      
+      if (!is.na(cert())) {
+        cert() %>% 
+          str_replace("https://s3.amazonaws.com", "s3:/") %>%
+          get_object() %>% 
+          writeBin("www/test.pdf") # tempfile(fileext = ".pdf")
+        tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
+      } else {
         h3("No Vaccine Certificate Available")
-    }
-  }
+      }
 
+}
   })
   
   # Download vaccine certificate
