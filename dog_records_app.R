@@ -97,7 +97,12 @@ ui <- fluidPage(
                                    #                              dataTableOutput(outputId = "past_meds_table")
                                    #                              )
                                    #                 )
-                                   ))
+                                   )),
+                                   conditionalPanel(condition = "output.show_test_results", h3("Test Results"),
+                                                    br(),
+                                                    downloadButton("download_test_results", "Download PDF"),
+                                                    br(), br()),
+                                   uiOutput("test_results")
                                    # wellPanel(h3("Vets"), 
                                    #           dataTableOutput(outputId = "vets_table")
                                    #           )
@@ -242,148 +247,119 @@ server <- function(input, output) {
     fitWindow("med_history_timeline")
   })
   
-  # get all the variables needed for use in the following render function
+  # get all the variables needed for use in the following render functions
   
-  # create server to ui variable for visit details conditional panel
-  output$show_visit_details <- reactive({
-    
+  get_group <- reactive({
     if (!is.null(input$med_history_timeline_selected)) {
-      get_group <- input$med_history_timeline_data %>% 
-        filter(id == input$med_history_timeline_selected) %>% 
+      input$med_history_timeline_data %>%
+        filter(id == input$med_history_timeline_selected) %>%
         pull(group)
     }
-    
-    !is.null(input$med_history_timeline_selected) & get_group == "med"
-    
+  })
+  
+  show_visit_details_fun <- reactive({
+    !is.null(input$med_history_timeline_selected) && get_group() == "med"
+  })
+  
+  show_test_results_fun <- reactive({
+    !is.null(input$med_history_timeline_selected) && get_group() == "test"
+  })
+  
+  id <- reactive({
+    if (!is.null(input$med_history_timeline_selected)) {
+   input$med_history_timeline_selected %>% 
+      str_extract("\\d+") %>% 
+      as.integer()
+    }
+  })    
+  
+  test_result <- reactive({
+    if (show_test_results_fun()) {
+      dimTests %>%
+        filter(test_id == id()) %>%
+        pull(test_result_doc)
+    } else {
+      NA
+    }
+  })
+
+  # create server to ui variable for visit details conditional panel
+  output$show_visit_details <- reactive({
+    show_visit_details_fun()
   })
   outputOptions(output, "show_visit_details", suspendWhenHidden = FALSE)
   
-  # create server to ui variable for visit details conditional panel
+  # create server to ui variable for test results conditional panel
   output$show_test_results <- reactive({
-    
-    if (!is.null(input$med_history_timeline_selected)) {
-      get_group <- input$med_history_timeline_data %>% 
-        filter(id == input$med_history_timeline_selected) %>% 
-        pull(group)
-      
-      if (get_group == "test") {
-        id <- input$med_history_timeline_selected %>% 
-          str_extract("\\d+") %>% 
-          as.integer()
-        
-        show_result <- dimTests %>%
-          filter(test_id == id) %>%
-          pull(test_result_doc)
-      } 
-    }
-    
-    !is.null(input$med_history_timeline_selected) & get_group == "test" & !is.na(show_result)
-    
+
+    show_test_results_fun() && !is.na(test_result())
+
   })
   outputOptions(output, "show_test_results", suspendWhenHidden = FALSE)
   
   
   output$visit_info <- renderText({
     
-    if (!is.null(input$med_history_timeline_selected)) {
-      
-      get_group <- input$med_history_timeline_data %>% 
-        filter(id == input$med_history_timeline_selected) %>% 
-        pull(group)
-      
-      if (get_group == "med") {
-        id <- input$med_history_timeline_selected %>% 
-          str_extract("\\d+") %>% 
-          as.integer()
+    if (show_visit_details_fun()) {
         
         # could join visits with vet info to get vet phone and include it here
-        date <- paste(strong("Visit Date:"), dimVisits %>% 
-                        filter(visit_id == id) %>% 
+        date <- paste(strong("Visit Date:"), dimVisits %>%
+                        filter(visit_id == id()) %>%
                         pull(visit_date))
-        notes <- paste(strong("Visit Information:"), dimVisits %>% 
-                         filter(visit_id == id) %>% 
+        notes <- paste(strong("Visit Information:"), dimVisits %>%
+                         filter(visit_id == id()) %>%
                          pull(visit_notes))
-        vet <- paste(strong("Vet:"), dimVisits %>% 
-                       filter(visit_id == id) %>% 
+        vet <- paste(strong("Vet:"), dimVisits %>%
+                       filter(visit_id == id()) %>%
                        pull(facility_name))
         paste(date, notes, vet, sep = "<br>")
-        
-      }
-      
-      # id <- input$med_history_timeline_data %>%
-      #   filter(id == input$med_history_timeline_selected) %>% 
-      #   select(id) %>% 
-      #   mutate(id = str_extract(id, "\\d+")) %>% 
-      #   pull() %>% 
-      #   as.integer()
       
     }
   })
   
   output$test_info <- renderText({
     
-    if (!is.null(input$med_history_timeline_selected)) {
+    if (show_visit_details_fun()) {
       
-      get_group <- input$med_history_timeline_data %>% 
-        filter(id == input$med_history_timeline_selected) %>% 
-        pull(group)
-      
-      if (get_group == "med") {
-        id <- input$med_history_timeline_selected %>% 
-          str_extract("\\d+") %>% 
-          as.integer()
         
         dimVisits %>% 
           left_join(dimTests, by = c("dog_name", "facility_name", "visit_date")) %>% 
-          filter(visit_id == id, !(test_category %in% "routine")) %>% 
+          filter(visit_id == id(), !(test_category %in% "routine")) %>% 
           pull(test_name) %>% 
           paste(collapse  = "<br>")
-      }
     }
   })
   
   output$medication_info <- renderText({
     
-    if (!is.null(input$med_history_timeline_selected)) {
-      get_group <- input$med_history_timeline_data %>% 
-        filter(id == input$med_history_timeline_selected) %>% 
-        pull(group)
-      
-      if (get_group == "med") {
-        id <- input$med_history_timeline_selected %>% 
-          str_extract("\\d+") %>% 
-          as.integer()
+    if (show_visit_details_fun()) {
         
         dimVisits %>% 
           left_join(dimMeds, by = c("dog_name", "facility_name", "visit_date")) %>% 
-          filter(visit_id == id, !(med_category %in% "flea and tick")) %>% 
+          filter(visit_id == id(), !(med_category %in% "flea and tick")) %>% 
           select(med_name) %>% 
           distinct() %>% 
           pull() %>% 
           paste(collapse  = "<br>")
-      }
     }
   })
   
-  # show test results file if test is selected in timeline
-  output$vaccine_cert <- renderUI({
-    
-    if (!is.null(input$vaccine_history_timeline_selected)) {
-      cert <- input$vaccine_history_timeline_data %>%
-        filter(id == input$vaccine_history_timeline_selected) %>% 
-        pull(doc)
-      
-      if (!is.na(cert)) {
-        cert %>% 
+ # show test results file if test is selected in timeline
+  output$test_results <- renderUI({
+
+    if (show_test_results_fun()) {
+
+      if (!is.na(test_result())) {
+        test_result() %>%
           str_replace("https://s3.amazonaws.com", "s3:/") %>%
-          get_object() %>% 
-          writeBin("www/test.pdf") # tempfile(fileext = ".pdf")
-        tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
+          get_object() %>%
+          writeBin("www/test_result.pdf") # tempfile(fileext = ".pdf")
+        tags$iframe(style = "height:1400px; width:100%", src = "test_result.pdf")
       } else {
-        h3("No Vaccine Certificate available")
+        h3("No Vaccine Certificate Available")
       }
     }
-    
+
   })
   
   # Create current meds data table
@@ -478,7 +454,7 @@ vac %>%
         writeBin("www/test.pdf") # tempfile(fileext = ".pdf")
       tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
     } else {
-        h3("No Vaccine Certificate available")
+        h3("No Vaccine Certificate Available")
     }
   }
 
