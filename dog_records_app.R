@@ -242,6 +242,8 @@ server <- function(input, output) {
     fitWindow("med_history_timeline")
   })
   
+  # get all the variables needed for use in the following render function
+  
   # create server to ui variable for visit details conditional panel
   output$show_visit_details <- reactive({
     
@@ -263,76 +265,125 @@ server <- function(input, output) {
       get_group <- input$med_history_timeline_data %>% 
         filter(id == input$med_history_timeline_selected) %>% 
         pull(group)
+      
+      if (get_group == "test") {
+        id <- input$med_history_timeline_selected %>% 
+          str_extract("\\d+") %>% 
+          as.integer()
+        
+        show_result <- dimTests %>%
+          filter(test_id == id) %>%
+          pull(test_result_doc)
+      } 
     }
     
-    !is.null(input$med_history_timeline_selected) & get_group == "test"
+    !is.null(input$med_history_timeline_selected) & get_group == "test" & !is.na(show_result)
     
   })
-  outputOptions(output, "show_visit_details", suspendWhenHidden = FALSE)
+  outputOptions(output, "show_test_results", suspendWhenHidden = FALSE)
   
   
   output$visit_info <- renderText({
     
     if (!is.null(input$med_history_timeline_selected)) {
-      id <- input$med_history_timeline_data %>%
-        filter(group == "med", id == input$med_history_timeline_selected) %>% 
-        select(id) %>% 
-        mutate(id = str_extract(id, "\\d+")) %>% 
-        pull() %>% 
-        as.integer()
+      
+      get_group <- input$med_history_timeline_data %>% 
+        filter(id == input$med_history_timeline_selected) %>% 
+        pull(group)
+      
+      if (get_group == "med") {
+        id <- input$med_history_timeline_selected %>% 
+          str_extract("\\d+") %>% 
+          as.integer()
         
-      # could join visits with vet info to get vet phone and include it here
-      date <- paste(strong("Visit Date:"), dimVisits %>% 
-                      filter(visit_id == id) %>% 
-                      pull(visit_date))
-      notes <- paste(strong("Visit Information:"), dimVisits %>% 
+        # could join visits with vet info to get vet phone and include it here
+        date <- paste(strong("Visit Date:"), dimVisits %>% 
+                        filter(visit_id == id) %>% 
+                        pull(visit_date))
+        notes <- paste(strong("Visit Information:"), dimVisits %>% 
+                         filter(visit_id == id) %>% 
+                         pull(visit_notes))
+        vet <- paste(strong("Vet:"), dimVisits %>% 
                        filter(visit_id == id) %>% 
-                       pull(visit_notes))
-      vet <- paste(strong("Vet:"), dimVisits %>% 
-                     filter(visit_id == id) %>% 
-                     pull(facility_name))
-      paste(date, notes, vet, sep = "<br>")
+                       pull(facility_name))
+        paste(date, notes, vet, sep = "<br>")
+        
+      }
+      
+      # id <- input$med_history_timeline_data %>%
+      #   filter(id == input$med_history_timeline_selected) %>% 
+      #   select(id) %>% 
+      #   mutate(id = str_extract(id, "\\d+")) %>% 
+      #   pull() %>% 
+      #   as.integer()
+      
     }
   })
   
   output$test_info <- renderText({
     
     if (!is.null(input$med_history_timeline_selected)) {
-      id <- input$med_history_timeline_data %>%
-        filter(group == "med", id == input$med_history_timeline_selected) %>% 
-        select(id) %>% 
-        mutate(id = str_extract(id, "\\d+")) %>% 
-        pull() %>% 
-        as.integer()
       
-      # could join visits with vet info to get vet phone and include it here
-      tests <- dimVisits %>% 
-                       left_join(dimTests, by = c("dog_name", "facility_name", "visit_date")) %>% 
-                      filter(visit_id == id) %>% 
-                      pull(test_name) %>% 
-        paste(collapse  = "<br>")
+      get_group <- input$med_history_timeline_data %>% 
+        filter(id == input$med_history_timeline_selected) %>% 
+        pull(group)
+      
+      if (get_group == "med") {
+        id <- input$med_history_timeline_selected %>% 
+          str_extract("\\d+") %>% 
+          as.integer()
+        
+        dimVisits %>% 
+          left_join(dimTests, by = c("dog_name", "facility_name", "visit_date")) %>% 
+          filter(visit_id == id, !(test_category %in% "routine")) %>% 
+          pull(test_name) %>% 
+          paste(collapse  = "<br>")
+      }
     }
   })
   
   output$medication_info <- renderText({
     
     if (!is.null(input$med_history_timeline_selected)) {
-      id <- input$med_history_timeline_data %>%
-        filter(group == "med", id == input$med_history_timeline_selected) %>% 
-        select(id) %>% 
-        mutate(id = str_extract(id, "\\d+")) %>% 
-        pull() %>% 
-        as.integer()
+      get_group <- input$med_history_timeline_data %>% 
+        filter(id == input$med_history_timeline_selected) %>% 
+        pull(group)
       
-      # could join visits with vet info to get vet phone and include it here
-      tests <- dimVisits %>% 
-        left_join(dimMeds, by = c("dog_name", "facility_name", "visit_date")) %>% 
-        filter(visit_id == id, !(med_category %in% "flea and tick")) %>% 
-        select(med_name) %>% 
-        distinct() %>% 
-        pull() %>% 
-        paste(collapse  = "<br>")
+      if (get_group == "med") {
+        id <- input$med_history_timeline_selected %>% 
+          str_extract("\\d+") %>% 
+          as.integer()
+        
+        dimVisits %>% 
+          left_join(dimMeds, by = c("dog_name", "facility_name", "visit_date")) %>% 
+          filter(visit_id == id, !(med_category %in% "flea and tick")) %>% 
+          select(med_name) %>% 
+          distinct() %>% 
+          pull() %>% 
+          paste(collapse  = "<br>")
+      }
     }
+  })
+  
+  # show test results file if test is selected in timeline
+  output$vaccine_cert <- renderUI({
+    
+    if (!is.null(input$vaccine_history_timeline_selected)) {
+      cert <- input$vaccine_history_timeline_data %>%
+        filter(id == input$vaccine_history_timeline_selected) %>% 
+        pull(doc)
+      
+      if (!is.na(cert)) {
+        cert %>% 
+          str_replace("https://s3.amazonaws.com", "s3:/") %>%
+          get_object() %>% 
+          writeBin("www/test.pdf") # tempfile(fileext = ".pdf")
+        tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
+      } else {
+        h3("No Vaccine Certificate available")
+      }
+    }
+    
   })
   
   # Create current meds data table
