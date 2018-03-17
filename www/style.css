@@ -28,15 +28,15 @@ h3 {
 }*/
 
 #med_history_timeline .vis-item.med {
-  border-color: #75CAEB;  /*this controls the line and dot color*/
-  background-color: #75CAEB; /*#4abeeb; controls color of item box*/
+  border-color: #158CBA;  /*this controls the line and dot color*/
+  background-color: #158CBA; /*#4abeeb; controls color of item box*/
   /*font-size: 15pt; controls font of item*/
   color:  #fff; /*control text color of item text*/
 }
 
 #med_history_timeline .vis-item.test {
-  border-color: #158CBA;  
-  background-color: #158CBA; /*#ffa04e; controls color of item box
+  border-color: #75CAEB;  
+  background-color: #75CAEB; /*#ffa04e; controls color of item box
   font-size: 15pt; controls font of item*/
   color: #fff; 
 }
