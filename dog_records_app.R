@@ -406,7 +406,7 @@ server <- function(input, output) {
   
   # Create vaccine timeline
   output$vaccine_history_timeline <- renderTimevis({
-    req(input$pet)
+    req(input$pet, input$vacc)
     
     vac <- dimVaccines %>% 
       inner_join(dimDogs, by = "dog_name") %>% 
@@ -417,15 +417,34 @@ server <- function(input, output) {
       filter(!is.na(test_current_flag)) %>% 
       select(dog_name, content = test_name, start = test_date_performed, end = test_date_expires, title = facility_name, current_flag = test_current_flag, doc = test_result_doc) 
     
-vac %>% 
-    bind_rows(tests) %>% 
-  rowid_to_column(var = "id") %>% 
-      filter(dog_name %in% input$pet, current_flag %in% input$vacc) %>% 
-    mutate(className = case_when(
-      current_flag == "Y" ~ "current",
-      current_flag == "N" ~ "past"),
-    title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", title,"\n", sep = "")) %>% 
-    timevis()
+    if (length(input$vacc) == 1 && input$vacc == "Y") {
+      vac %>% 
+        bind_rows(tests) %>% 
+        rowid_to_column(var = "id") %>% 
+        filter(dog_name %in% input$pet, current_flag %in% input$vacc) %>% 
+        mutate(className = case_when(
+          current_flag == "Y" ~ "current",
+          current_flag == "N" ~ "past"),
+          title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", title,"\n", sep = "")) %>% 
+        timevis()
+    } else {
+     vacc_data <- vac %>% 
+        bind_rows(tests) %>% 
+        rowid_to_column(var = "id") %>% 
+        filter(dog_name %in% input$pet, current_flag %in% input$vacc) %>% 
+        mutate(className = case_when(
+          current_flag == "Y" ~ "current",
+          current_flag == "N" ~ "past"),
+          title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", title,"\n", sep = ""),
+          group = content) 
+       
+        groups <- data.frame(
+          id = c("Rabies", "Distemper", "Bordetella (drops)", "Bordetella (injection)", "Flu", "Lepto", "Rattlesnake", "Fecal Test", "Heartworm Test"),
+          content = c("Rabies", "Distemper", "Bordetella (drops)", "Bordetella (injection)", "Flu", "Lepto", "Rattlesnake", "Fecal Test", "Heartworm Test")
+        )
+         timevis(vacc_data, groups = groups)
+      }
+    
   })
   
   # reset timeline view
