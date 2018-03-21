@@ -424,7 +424,7 @@ vac %>%
     mutate(className = case_when(
       current_flag == "Y" ~ "current",
       current_flag == "N" ~ "past"),
-    title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", title,"\n",id, sep = "")) %>% 
+    title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", title,"\n", sep = "")) %>% 
     timevis()
   })
   
@@ -456,8 +456,8 @@ vac %>%
         cert() %>% 
           str_replace("https://s3.amazonaws.com", "s3:/") %>%
           get_object() %>% 
-          writeBin("www/test.pdf") # tempfile(fileext = ".pdf")
-        tags$iframe(style = "height:1400px; width:100%", src = "test.pdf")
+          writeBin("www/vaccine.pdf") # tempfile(fileext = ".pdf")
+        tags$iframe(style = "height:1400px; width:100%", src = "vaccine.pdf")
       } else {
         h3("No Vaccine Certificate Available")
       }
@@ -471,14 +471,14 @@ vac %>%
       "vaccine_cert.pdf"
     },
     content = function(file) {
-        file.copy("www/test.pdf", file)
+        file.copy("www/vaccine.pdf", file)
     }
   )
   
   # clear selection if different dog is chosen not quite sure how to do this, get warning of argument is length zero
-  # eventReactive(input$pet, {
-  #   input$vaccine_history_timeline_selected <- NULL
-  # })
+  # observeEvent(input$pet, 
+  #    input$vaccine_history_timeline_selected <- NULL
+  #  )
   
   # Create medication history timeline
   # output$medication_history_timeline <- renderTimevis({
