@@ -81,6 +81,7 @@ ui <- fluidPage(
     # Outputs
     mainPanel(width = 10, tabsetPanel(tabPanel(div(icon("medkit"), "Medical History"), 
                                    wellPanel(h3("Medical History and Tests Timeline"),
+                                             h5("Select an item to view more details or test results (where available). The information is shown below the timeline."),
                                              br(),
                                              timevisOutput("med_history_timeline"),
                                              actionButton("medfit", "Reset view")),
@@ -109,6 +110,7 @@ ui <- fluidPage(
                                    ), 
                                    tabPanel(div(icon("heartbeat"), "Vaccine History"),
                                             wellPanel(h3("Vaccine Timeline"),
+                                                      h6("Select an item to view vaccine certificate (where available) below timeline"),
                                                       checkboxGroupInput(inputId = "vacc",
                                                                          label = NULL,
                                                                          choices = c("Current Vaccines" = "Y", 
@@ -304,13 +306,16 @@ server <- function(input, output) {
         date <- paste(strong("Visit Date:"), dimVisits %>%
                         filter(visit_id == id()) %>%
                         pull(visit_date))
-        notes <- paste(strong("Visit Information:"), dimVisits %>%
-                         filter(visit_id == id()) %>%
-                         pull(visit_notes))
         vet <- paste(strong("Vet:"), dimVisits %>%
                        filter(visit_id == id()) %>%
                        pull(facility_name))
-        paste(date, notes, vet, sep = "<br>")
+        doctor <- paste(strong("Doctor:"), dimVisits %>%
+                       filter(visit_id == id()) %>%
+                       pull(visit_doctor))
+        notes <- paste(strong("Visit Information:"), dimVisits %>%
+                         filter(visit_id == id()) %>%
+                         pull(visit_notes))
+        paste(date, vet, doctor, notes, sep = "<br>")
       
     }
   })
@@ -440,7 +445,7 @@ server <- function(input, output) {
        
         groups <- data.frame(
           id = c("Rabies", "Distemper", "Bordetella (drops)", "Bordetella (injection)", "Flu", "Lepto", "Rattlesnake", "Fecal Test", "Heartworm Test"),
-          content = c("Rabies", "Distemper", "Bordetella (drops)", "Bordetella (injection)", "Flu", "Lepto", "Rattlesnake", "Fecal Test", "Heartworm Test")
+           content = c("Rabies", "Distemper", "Bordetella (drops)", "Bordetella (injection)", "Flu", "Lepto", "Rattlesnake", "Fecal Test", "Heartworm Test")
         )
          timevis(vacc_data, groups = groups)
       }
