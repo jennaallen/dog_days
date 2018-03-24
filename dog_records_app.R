@@ -402,7 +402,7 @@ server <- function(input, output) {
     req(input$pet)
     pool %>% 
       tbl("viewVisitsPetsVets") %>%
-      filter(pet_name %in% input$pet) %>%
+      filter(pet_name %in% input$pet, vet_name != "No Vet") %>%
       select(vet_name, vet_phone, vet_website, vet_email, vet_state) %>% 
       distinct() %>% 
       arrange(vet_name) %>% 
@@ -418,9 +418,10 @@ server <- function(input, output) {
     if (length(input$vacc) == 1 && input$vacc == "Y") {
       pool %>% 
         tbl("viewVaccineHistTimeline") %>% 
-       # rowid_to_column(var = "id") %>% 
+      # rowid_to_column(var = "id") %>% 
         filter(pet_name %in% input$pet, current_flag %in% input$vacc) %>% 
         mutate(title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", vet_name, sep = "")) %>% 
+        collect() %>% 
         timevis()
     } else {
      vacc_data <- pool %>% 
@@ -428,7 +429,8 @@ server <- function(input, output) {
        # rowid_to_column(var = "id") %>% 
         filter(pet_name %in% input$pet, current_flag %in% input$vacc) %>% 
         mutate(title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", vet_name, sep = ""),
-        group = content) 
+        group = content) %>% 
+       collect()
        
         groups <- data.frame(
           id = c("Rabies", "Distemper", "Bordetella (drops)", "Bordetella (injection)", "Flu", "Lepto", "Rattlesnake", "Fecal Test", "Heartworm Test"),
