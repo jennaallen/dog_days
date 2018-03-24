@@ -25,7 +25,8 @@ pool <- dbPool(
 # dimVets <- read_csv("dimVets.csv")
 # dimVaccines <- read_csv("dimVaccines.csv")
 
-all_pets <- sort(unique(dimDogs$pet_name))
+all_pets <- pool %>% tbl("dimPets") %>%
+  pull(pet_name)
 
 
 # UI
@@ -151,9 +152,11 @@ server <- function(input, output) {
   # Get pet image to be displayed in sidepanel
   output$pet_image <- renderImage({
     req(input$pet)
-    tmpfile <- dimDogs %>%
+    tmpfile <- pool %>% 
+      tbl("dimPets") %>%
       filter(pet_name %in% input$pet) %>%
       select(pet_picture) %>%
+      collect() %>% 
       str_replace("https://s3.amazonaws.com", "s3:/") %>%
       get_object() %>%
       image_read() %>%
@@ -168,29 +171,36 @@ server <- function(input, output) {
   # Create pet info to be displayed in sidepanel
   output$pet_info <- renderText({
     req(input$pet)
-    dob <- paste(strong("DOB:"), dimDogs %>% 
-      filter(pet_name %in% input$pet) %>% 
-      pull(pet_dob))
-    species <- paste(strong("Species:"), dimDogs %>% 
-                      filter(pet_name %in% input$pet) %>% 
-                      pull(pet_species))
-    breed <- paste(strong("Breed:"), dimDogs %>% 
-                      filter(pet_name %in% input$pet) %>% 
-                      pull(pet_breed))
-    sex <- paste(strong("Sex:"), dimDogs %>% 
-                    filter(pet_name %in% input$pet) %>% 
-                    pull(pet_sex))
-    color <- paste(strong("Color:"), dimDogs %>% 
-                    filter(pet_name %in% input$pet) %>% 
-                    pull(pet_color))
+    dob <- paste(strong("DOB:"), pool %>% 
+                   tbl("dimPets") %>% 
+                   filter(pet_name %in% input$pet) %>% 
+                   pull(pet_dob))
+    species <- paste(strong("Species:"), pool %>% 
+                       tbl("dimPets") %>% 
+                       filter(pet_name %in% input$pet) %>% 
+                       pull(pet_species))
+    breed <- paste(strong("Breed:"), pool %>% 
+                     tbl("dimPets") %>% 
+                     filter(pet_name %in% input$pet) %>% 
+                     pull(pet_breed))
+    sex <- paste(strong("Sex:"), pool %>% 
+                   tbl("dimPets") %>% 
+                   filter(pet_name %in% input$pet) %>% 
+                   pull(pet_sex))
+    color <- paste(strong("Color:"), pool %>% 
+                     tbl("dimPets") %>% 
+                     filter(pet_name %in% input$pet) %>% 
+                     pull(pet_color))
     paste(dob, species, breed, sex, color, sep = "<br>")
   })
   
   # Create pet weight history sparkline
   output$pet_weight <- renderSparkline({
-    dimVisits %>% 
+    pool %>% 
+      tbl("viewVisitsPets") %>% 
       select(pet_name, visit_date, visit_weight) %>% 
       filter(pet_name == input$pet, !is.na(visit_weight)) %>% 
+      arrange(visit_date) %>% 
       pull(visit_weight) %>% 
       sparkline(width = "98%", 
                 height = "100px", 
@@ -209,26 +219,12 @@ server <- function(input, output) {
   output$med_history_timeline <- renderTimevis({
     req(input$pet)
     
-    timeline_visits <- dimVisits %>% 
-      inner_join(dimDogs, by = "pet_name") %>% 
-      filter(pet_name %in% input$pet, str_detect(visit_category, "medical")) %>% 
-      mutate(group = "med",
-             id = paste(visit_id, group, sep = "_")) %>% 
-      rename(content = med_visit_summary, start = visit_date, title = visit_notes, category = visit_category) %>% 
-      select(id, pet_name, vet_name, start, title, content, category, group) 
-    
-    timeline_tests <- dimTests %>% 
-      inner_join(dimDogs, by = "pet_name") %>%
-      filter(pet_name %in% input$pet, str_detect(test_category, "medical")) %>%
-      mutate(group = "test",
-             id = paste(test_id, group, sep = "_")) %>% 
-      rename(content = test_name, start = test_date_performed, title = test_result, category = test_category) %>%
-      select(id, pet_name, vet_name, start, title, content, category, group) 
-    
-    grouped_data <- timeline_visits %>% 
-      bind_rows(timeline_tests) %>% 
-      mutate(className = group)
-    
+    grouped_data <- pool %>% 
+      tbl("viewMedHistTimeline") %>% 
+      filter(pet_name %in% input$pet) %>% 
+      mutate(className = group) %>% 
+      collect()
+      
     groups <- data.frame(
       id = c("med", "test"),
       content = c("Medical History", "Test History")
@@ -270,8 +266,9 @@ server <- function(input, output) {
   
   test_result <- reactive({
     if (show_test_results_fun()) {
-      dimTests %>%
-        filter(test_id == id()) %>%
+      pool %>% 
+        tbl("dimTests") %>% 
+        filter(test_id == !! id()) %>%
         pull(test_result_doc)
      }
   })
@@ -295,20 +292,27 @@ server <- function(input, output) {
     
     if (show_visit_details_fun()) {
         
-        # could join visits with vet info to get vet phone and include it here
-        date <- paste(strong("Visit Date:"), dimVisits %>%
-                        filter(visit_id == id()) %>%
+        date <- paste(strong("Visit Date:"), pool %>% 
+                        tbl("viewVisitsVets") %>%
+                        filter(visit_id == !! id()) %>%
                         pull(visit_date))
-        vet <- paste(strong("Vet:"), dimVisits %>%
-                       filter(visit_id == id()) %>%
+        vet <- paste(strong("Vet:"), pool %>% 
+                       tbl("viewVisitsVets") %>% 
+                       filter(visit_id == !! id()) %>%
                        pull(vet_name))
-        doctor <- paste(strong("Doctor:"), dimVisits %>%
-                       filter(visit_id == id()) %>%
+        doctor <- paste(strong("Doctor:"), pool %>% 
+                          tbl("viewVisitsVets") %>%
+                       filter(visit_id == !! id()) %>%
                        pull(visit_doctor))
-        notes <- paste(strong("Visit Information:"), dimVisits %>%
-                         filter(visit_id == id()) %>%
+        vet_phone <- paste(strong("Vet Phone:"), pool %>% 
+                          tbl("viewVisitsVets") %>%
+                          filter(visit_id == !! id()) %>%
+                          pull(vet_phone))
+        notes <- paste(strong("Visit Information:"), pool %>% 
+                         tbl("viewVisitsVets") %>%
+                         filter(visit_id == !! id()) %>%
                          pull(visit_notes))
-        paste(date, vet, doctor, notes, sep = "<br>")
+        paste(date, vet, doctor, vet_phone, notes, sep = "<br>")
       
     }
   })
@@ -318,9 +322,9 @@ server <- function(input, output) {
     if (show_visit_details_fun()) {
       
         
-        dimVisits %>% 
-          left_join(dimTests, by = c("pet_name", "vet_name", "visit_date")) %>% 
-          filter(visit_id == id(), !(test_category %in% "routine")) %>% 
+      pool %>% 
+        tbl("viewVisitsTests") %>% 
+          filter(visit_id == !! id(), !(test_category %in% "routine")) %>% 
           pull(test_name) %>% 
           paste(collapse  = "<br>")
     }
@@ -330,9 +334,9 @@ server <- function(input, output) {
     
     if (show_visit_details_fun()) {
         
-        dimVisits %>% 
-          left_join(dimMeds, by = c("pet_name", "vet_name", "visit_date")) %>% 
-          filter(visit_id == id(), !(med_category %in% "flea and tick")) %>% 
+      pool %>% 
+        tbl("viewVisitsMeds") %>% 
+          filter(visit_id == !! id(), !(med_category %in% "flea and tick")) %>% 
           select(med_name) %>% 
           distinct() %>% 
           pull() %>% 
@@ -371,9 +375,11 @@ server <- function(input, output) {
   # Create current meds data table
   output$current_meds_table <- renderDataTable({
     req(input$pet)
-    dimMeds %>%
+    pool %>% 
+      tbl("viewMedsPetsVets") %>% 
       filter(pet_name %in% input$pet, med_current_flag == "Y") %>%
-      select(med_name, vet_name, med_start_date, med_dosage, med_dosage_freq, med_category) %>% 
+      select(Medication = med_name, "Prescribing Vet" =  vet_name, "Start Date" = med_start_date, Dosage = med_dosage, Frequency = med_dosage_freq, Category = med_category) %>% 
+      collect() %>% 
       datatable(options = list(pageLength = 5, dom = 'ltip'),
                 rownames = FALSE)
   })
@@ -381,10 +387,12 @@ server <- function(input, output) {
   # Create past meds data table
   output$past_meds_table <- renderDataTable({
     req(input$pet)
-    dimMeds %>%
+    pool %>% 
+      tbl("viewMedsPetsVets") %>% 
       filter(pet_name %in% input$pet, med_current_flag == "N") %>%
-      select(med_name, vet_name, med_end_date, med_dosage, med_dosage_freq, med_category) %>% 
+      select(Medication = med_name, "Prescribing Vet" = vet_name, "End Date" = med_end_date, Dosage = med_dosage, Frequency = med_dosage_freq, Category = med_category) %>% 
       arrange(desc(med_end_date)) %>% 
+      collect() %>% 
       datatable(options = list(pageLength = 10),
                 rownames = FALSE)
   })
@@ -392,12 +400,13 @@ server <- function(input, output) {
   # Create vets data table
   output$vets_table <- renderDataTable({
     req(input$pet)
-    dimVisits %>%
-      left_join(dimVets, by = "vet_name") %>% 
+    pool %>% 
+      tbl("viewVisitsPetsVets") %>%
       filter(pet_name %in% input$pet) %>%
       select(vet_name, vet_phone, vet_website, vet_email, vet_state) %>% 
       distinct() %>% 
       arrange(vet_name) %>% 
+      collect() %>% 
       datatable(options = list(pageLength = 10, dom = 'ltip'),
                 rownames = FALSE)
   })
@@ -406,35 +415,20 @@ server <- function(input, output) {
   output$vaccine_history_timeline <- renderTimevis({
     req(input$pet, input$vacc)
     
-    vac <- dimVaccines %>% 
-      inner_join(dimDogs, by = "pet_name") %>% 
-      select(pet_name, content = vaccine_name, start = vaccine_date_given, end = vaccine_date_expires, title = vet_name, current_flag = vaccine_current_flag, doc = vaccine_certificate)
-    
-    tests <- dimTests %>% 
-      inner_join(dimDogs, by = "pet_name") %>%
-      filter(!is.na(test_current_flag)) %>% 
-      select(pet_name, content = test_name, start = test_date_performed, end = test_date_expires, title = vet_name, current_flag = test_current_flag, doc = test_result_doc) 
-    
     if (length(input$vacc) == 1 && input$vacc == "Y") {
-      vac %>% 
-        bind_rows(tests) %>% 
-        rowid_to_column(var = "id") %>% 
+      pool %>% 
+        tbl("viewVaccineHistTimeline") %>% 
+       # rowid_to_column(var = "id") %>% 
         filter(pet_name %in% input$pet, current_flag %in% input$vacc) %>% 
-        mutate(className = case_when(
-          current_flag == "Y" ~ "current",
-          current_flag == "N" ~ "past"),
-          title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", title,"\n", sep = "")) %>% 
+        mutate(title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", vet_name, sep = "")) %>% 
         timevis()
     } else {
-     vacc_data <- vac %>% 
-        bind_rows(tests) %>% 
-        rowid_to_column(var = "id") %>% 
+     vacc_data <- pool %>% 
+        tbl("viewVaccineHistTimeline") %>% 
+       # rowid_to_column(var = "id") %>% 
         filter(pet_name %in% input$pet, current_flag %in% input$vacc) %>% 
-        mutate(className = case_when(
-          current_flag == "Y" ~ "current",
-          current_flag == "N" ~ "past"),
-          title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", title,"\n", sep = ""),
-          group = content) 
+        mutate(title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", vet_name, sep = ""),
+        group = content) 
        
         groups <- data.frame(
           id = c("Rabies", "Distemper", "Bordetella (drops)", "Bordetella (injection)", "Flu", "Lepto", "Rattlesnake", "Fecal Test", "Heartworm Test"),
