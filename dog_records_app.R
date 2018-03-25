@@ -6,17 +6,17 @@ library(aws.s3)
 library(sparkline)
 library(magick)
 library(shinythemes)
-library(pool)
+library(RMySQL)
 
 # source("utils.R")
 
-pool <- dbPool(
-  drv = RMySQL::MySQL(),
-  dbname = "PetRecords",
-  host = Sys.getenv("RDShost"),
-  username = Sys.getenv("RDSpetsuser"),
-  password = Sys.getenv("RDSpetspw")
-)
+# pool <- dbPool(
+#   drv = RMySQL::MySQL(),
+#   dbname = "PetRecords",
+#   host = Sys.getenv("RDShost"),
+#   username = Sys.getenv("RDSpetsuser"),
+#   password = Sys.getenv("RDSpetspw")
+# )
 
 # dimTests <- read_csv("dimTests.csv")
 # dimMeds <- read_csv("dimMeds.csv")
@@ -24,9 +24,6 @@ pool <- dbPool(
 # dimDogs <- read_csv("dimDogs.csv")
 # dimVets <- read_csv("dimVets.csv")
 # dimVaccines <- read_csv("dimVaccines.csv")
-
-all_pets <- pool %>% tbl("dimPets") %>%
-  pull(pet_name)
 
 
 # UI
@@ -46,10 +43,7 @@ ui <- fluidPage(
   sidebarLayout(
     
     # inputs
-    sidebarPanel(radioButtons(inputId = "pet",
-                              label = "Select pet:",
-                              choices = all_pets,
-                              selected = "Layla"), 
+    sidebarPanel(uiOutput("all_pets"),
                  
                  hr(), # horizontal line for visual separation
                  
@@ -88,7 +82,8 @@ ui <- fluidPage(
                                                                                                                           htmlOutput(outputId = "test_info")
                                                                                                       )),
                                                                                                       column(4, wellPanel(h3("Prescribed Medications"),
-                                                                                                                          htmlOutput(outputId = "medication_info")))
+                                                                                                                          htmlOutput(outputId = "medication_info"))),
+                                                                                                      fluidRow(uiOutput("exam"))
                                    #          column(6, wellPanel(h3("Past Medications"), 
                                    #                              dataTableOutput(outputId = "past_meds_table")
                                    #                              )
@@ -149,14 +144,69 @@ ui <- fluidPage(
 # Server
 server <- function(input, output) {
   
+  pet_records <- reactivePoll(86400000, session,
+                              checkFunc = function() {
+                                con <- dbConnect(MySQL(),
+                                       username = Sys.getenv("RDSpetsuser"),
+                                  password = Sys.getenv("RDSpetspw"),
+                                  host = Sys.getenv("RDShost"),
+                                  dbname = 'PetRecords')
+                                
+                 max_date <- dbGetQuery(con, "SELECT MAX(updated_date) AS max_updated_date 
+                            FROM viewMaxUpdatedDates")
+                 
+                 # disconnect from RDS
+                 dbDisconnect(con)
+                 
+                 return(max_date)
+                 
+               }, 
+               valueFunc = function() {
+                 con <- dbConnect(MySQL(),
+                                  username = Sys.getenv("RDSpetsuser"),
+                                  password = Sys.getenv("RDSpetspw"),
+                                  host = Sys.getenv("RDShost"),
+                                  dbname = 'PetRecords')
+                 
+                 tables <- c("dimPets",
+                             "dimTests", 
+                             "viewVisitsPets", 
+                             "viewMedHistTimeline", 
+                             "viewVisitsVets", 
+                             "viewVisitsTests", 
+                             "viewVisitsMeds", 
+                             "viewMedsPetsVets", 
+                             "viewVisitsPetsVets", 
+                             "viewVaccineHistTimeline")
+                 
+                 df_list <- setNames(map(tables, ~ dbReadTable(con, .)), tables)
+                 
+                 # disconnect from RDS
+                 dbDisconnect(con)
+                 
+                 return(df_list)
+               }
+    
+  )
+  
+  # Check boxes
+  output$all_pets <- renderUI({
+    pets <- pet_records()$dimPets %>% 
+      pull(pet_name)
+    
+    # Create the checkboxes and select them all by default
+    radioButtons(inputId = "pet",
+                 label = "Select pet:",
+                 choices = pets,
+                 selected = "Layla")
+  })
+  
   # Get pet image to be displayed in sidepanel
   output$pet_image <- renderImage({
     req(input$pet)
-    tmpfile <- pool %>% 
-      tbl("dimPets") %>%
+    tmpfile <- pet_records()$dimPets %>%
       filter(pet_name %in% input$pet) %>%
       select(pet_picture) %>%
-      collect() %>% 
       str_replace("https://s3.amazonaws.com", "s3:/") %>%
       get_object() %>%
       image_read() %>%
@@ -171,24 +221,19 @@ server <- function(input, output) {
   # Create pet info to be displayed in sidepanel
   output$pet_info <- renderText({
     req(input$pet)
-    dob <- paste(strong("DOB:"), pool %>% 
-                   tbl("dimPets") %>% 
+    dob <- paste(strong("DOB:"), pet_records()$dimPets %>% 
                    filter(pet_name %in% input$pet) %>% 
                    pull(pet_dob))
-    species <- paste(strong("Species:"), pool %>% 
-                       tbl("dimPets") %>% 
+    species <- paste(strong("Species:"), pet_records()$dimPets %>% 
                        filter(pet_name %in% input$pet) %>% 
                        pull(pet_species))
-    breed <- paste(strong("Breed:"), pool %>% 
-                     tbl("dimPets") %>% 
+    breed <- paste(strong("Breed:"), pet_records()$dimPets %>%
                      filter(pet_name %in% input$pet) %>% 
                      pull(pet_breed))
-    sex <- paste(strong("Sex:"), pool %>% 
-                   tbl("dimPets") %>% 
+    sex <- paste(strong("Sex:"), pet_records()$dimPets %>% 
                    filter(pet_name %in% input$pet) %>% 
                    pull(pet_sex))
-    color <- paste(strong("Color:"), pool %>% 
-                     tbl("dimPets") %>% 
+    color <- paste(strong("Color:"), pet_records()$dimPets %>% 
                      filter(pet_name %in% input$pet) %>% 
                      pull(pet_color))
     paste(dob, species, breed, sex, color, sep = "<br>")
@@ -196,8 +241,8 @@ server <- function(input, output) {
   
   # Create pet weight history sparkline
   output$pet_weight <- renderSparkline({
-    pool %>% 
-      tbl("viewVisitsPets") %>% 
+    req(input$pet)
+    pet_records()$viewVisitsPets %>% 
       select(pet_name, visit_date, visit_weight) %>% 
       filter(pet_name == input$pet, !is.na(visit_weight)) %>% 
       arrange(visit_date) %>% 
@@ -219,11 +264,9 @@ server <- function(input, output) {
   output$med_history_timeline <- renderTimevis({
     req(input$pet)
     
-    grouped_data <- pool %>% 
-      tbl("viewMedHistTimeline") %>% 
+    grouped_data <- pet_records()$viewMedHistTimeline %>% 
       filter(pet_name %in% input$pet) %>% 
-      mutate(className = group) %>% 
-      collect()
+      mutate(className = group)
       
     groups <- data.frame(
       id = c("med", "test"),
@@ -266,11 +309,18 @@ server <- function(input, output) {
   
   test_result <- reactive({
     if (show_test_results_fun()) {
-      pool %>% 
-        tbl("dimTests") %>% 
-        filter(test_id == !! id()) %>%
+      pet_records()$dimTests %>% 
+        filter(test_id == id()) %>%
         pull(test_result_doc)
      }
+  })
+  
+  exam <- reactive({
+    if (show_visit_details_fun()) {
+      pet_records()$viewVisitsPets %>% 
+        filter(visit_id == id()) %>%
+        pull(visit_exam_doc)
+    }
   })
 
   # create server to ui variable for visit details conditional panel
@@ -281,36 +331,34 @@ server <- function(input, output) {
   
   # create server to ui variable for test results conditional panel
   output$show_test_results <- reactive({
-
     show_test_results_fun() && !is.na(test_result())
-
   })
   outputOptions(output, "show_test_results", suspendWhenHidden = FALSE)
   
+  # create server to ui variable for exam conditional panel
+  output$show_exam <- reactive({
+    show_visit_details_fun() && !is.na(exam())
+  })
+  outputOptions(output, "show_exam", suspendWhenHidden = FALSE)
   
   output$visit_info <- renderText({
     
     if (show_visit_details_fun()) {
         
-        date <- paste(strong("Visit Date:"), pool %>% 
-                        tbl("viewVisitsVets") %>%
-                        filter(visit_id == !! id()) %>%
+        date <- paste(strong("Visit Date:"), pet_records()$viewVisitsVets %>% 
+                        filter(visit_id == id()) %>%
                         pull(visit_date))
-        vet <- paste(strong("Vet:"), pool %>% 
-                       tbl("viewVisitsVets") %>% 
-                       filter(visit_id == !! id()) %>%
+        vet <- paste(strong("Vet:"), pet_records()$viewVisitsVets %>% 
+                       filter(visit_id == id()) %>%
                        pull(vet_name))
-        doctor <- paste(strong("Doctor:"), pool %>% 
-                          tbl("viewVisitsVets") %>%
-                       filter(visit_id == !! id()) %>%
+        doctor <- paste(strong("Doctor:"), pet_records()$viewVisitsVets %>%
+                       filter(visit_id == id()) %>%
                        pull(visit_doctor))
-        vet_phone <- paste(strong("Vet Phone:"), pool %>% 
-                          tbl("viewVisitsVets") %>%
-                          filter(visit_id == !! id()) %>%
+        vet_phone <- paste(strong("Vet Phone:"), pet_records()$viewVisitsVets %>%
+                          filter(visit_id == id()) %>%
                           pull(vet_phone))
-        notes <- paste(strong("Visit Information:"), pool %>% 
-                         tbl("viewVisitsVets") %>%
-                         filter(visit_id == !! id()) %>%
+        notes <- paste(strong("Visit Information:"), pet_records()$viewVisitsVets %>%
+                         filter(visit_id == id()) %>%
                          pull(visit_notes))
         paste(date, vet, doctor, vet_phone, notes, sep = "<br>")
       
@@ -321,10 +369,8 @@ server <- function(input, output) {
     
     if (show_visit_details_fun()) {
       
-        
-      pool %>% 
-        tbl("viewVisitsTests") %>% 
-          filter(visit_id == !! id(), !(test_category %in% "routine")) %>% 
+      pet_records()$viewVisitsTests %>%
+          filter(visit_id == id(), !(test_category %in% "routine")) %>% 
           pull(test_name) %>% 
           paste(collapse  = "<br>")
     }
@@ -334,14 +380,31 @@ server <- function(input, output) {
     
     if (show_visit_details_fun()) {
         
-      pool %>% 
-        tbl("viewVisitsMeds") %>% 
-          filter(visit_id == !! id(), !(med_category %in% "flea and tick")) %>% 
+      pet_records()$viewVisitsMeds %>%
+          filter(visit_id == id(), !(med_category %in% "flea and tick")) %>% 
           select(med_name) %>% 
           distinct() %>% 
           pull() %>% 
           paste(collapse  = "<br>")
     }
+  })
+  
+  # show exam file if visit is selected in timeline
+  output$exam <- renderUI({
+    
+    if (show_visit_details_fun()) {
+      
+      if (!is.na(exam())) {
+        exam() %>%
+          str_replace("https://s3.amazonaws.com", "s3:/") %>%
+          get_object() %>%
+          writeBin("www/exam.pdf") # tempfile(fileext = ".pdf")
+        tags$iframe(style = "height:1400px; width:100%", src = "exam.pdf")
+      } else {
+        h3("No Exam Notes Available")
+      }
+    }
+    
   })
   
  # show test results file if test is selected in timeline
@@ -375,11 +438,9 @@ server <- function(input, output) {
   # Create current meds data table
   output$current_meds_table <- renderDataTable({
     req(input$pet)
-    pool %>% 
-      tbl("viewMedsPetsVets") %>% 
+    pet_records()$viewMedsPetsVets %>%
       filter(pet_name %in% input$pet, med_current_flag == "Y") %>%
       select(Medication = med_name, "Prescribing Vet" =  vet_name, "Start Date" = med_start_date, Dosage = med_dosage, Frequency = med_dosage_freq, Category = med_category) %>% 
-      collect() %>% 
       datatable(options = list(pageLength = 5, dom = 'ltip'),
                 rownames = FALSE)
   })
@@ -387,12 +448,10 @@ server <- function(input, output) {
   # Create past meds data table
   output$past_meds_table <- renderDataTable({
     req(input$pet)
-    pool %>% 
-      tbl("viewMedsPetsVets") %>% 
+    pet_records()$viewMedsPetsVets %>%
       filter(pet_name %in% input$pet, med_current_flag == "N") %>%
+      arrange(desc(med_end_date)) %>%
       select(Medication = med_name, "Prescribing Vet" = vet_name, "End Date" = med_end_date, Dosage = med_dosage, Frequency = med_dosage_freq, Category = med_category) %>% 
-      arrange(desc(med_end_date)) %>% 
-      collect() %>% 
       datatable(options = list(pageLength = 10),
                 rownames = FALSE)
   })
@@ -400,13 +459,11 @@ server <- function(input, output) {
   # Create vets data table
   output$vets_table <- renderDataTable({
     req(input$pet)
-    pool %>% 
-      tbl("viewVisitsPetsVets") %>%
+    pet_records()$viewVisitsPetsVets %>%
       filter(pet_name %in% input$pet, vet_name != "No Vet") %>%
       select(vet_name, vet_phone, vet_website, vet_email, vet_state) %>% 
       distinct() %>% 
-      arrange(vet_name) %>% 
-      collect() %>% 
+      arrange(vet_name) %>%
       datatable(options = list(pageLength = 10, dom = 'ltip'),
                 rownames = FALSE)
   })
@@ -416,21 +473,17 @@ server <- function(input, output) {
     req(input$pet, input$vacc)
     
     if (length(input$vacc) == 1 && input$vacc == "Y") {
-      pool %>% 
-        tbl("viewVaccineHistTimeline") %>% 
-      # rowid_to_column(var = "id") %>% 
+      pet_records()$viewVaccineHistTimeline %>%
+       rowid_to_column(var = "id") %>% 
         filter(pet_name %in% input$pet, current_flag %in% input$vacc) %>% 
         mutate(title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", vet_name, sep = "")) %>% 
-        collect() %>% 
         timevis()
     } else {
-     vacc_data <- pool %>% 
-        tbl("viewVaccineHistTimeline") %>% 
-       # rowid_to_column(var = "id") %>% 
+     vacc_data <- pet_records()$viewVaccineHistTimeline %>% 
+        rowid_to_column(var = "id") %>% 
         filter(pet_name %in% input$pet, current_flag %in% input$vacc) %>% 
         mutate(title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", vet_name, sep = ""),
-        group = content) %>% 
-       collect()
+        group = content)
        
         groups <- data.frame(
           id = c("Rabies", "Distemper", "Bordetella (drops)", "Bordetella (injection)", "Flu", "Lepto", "Rattlesnake", "Fecal Test", "Heartworm Test"),
@@ -449,7 +502,7 @@ server <- function(input, output) {
   cert <- reactive({
     if (!is.null(input$vaccine_history_timeline_selected)) {
     input$vaccine_history_timeline_data %>%
-    filter(id == input$vaccine_history_timeline_selected) %>%
+    filter(id == input$vaccine_history_timeline_selected) %>% 
     pull(doc)
     }
   })  
