@@ -264,6 +264,10 @@ server <- function(input, output) {
   output$med_history_timeline <- renderTimevis({
     req(input$pet)
     
+    config <- list(
+      zoomKey = "ctrlKey"
+    )
+    
     grouped_data <- pet_records()$viewMedHistTimeline %>% 
       filter(pet_name %in% input$pet) %>% 
       mutate(className = group)
@@ -273,7 +277,7 @@ server <- function(input, output) {
       content = c("Medical History", "Test History")
     )
       
-      timevis(grouped_data, groups = groups)
+      timevis(grouped_data, groups = groups, options = config)
   })
   
   # reset timeline view
@@ -472,12 +476,17 @@ server <- function(input, output) {
   output$vaccine_history_timeline <- renderTimevis({
     req(input$pet, input$vacc)
     
+    config <- list(
+      zoomKey = "ctrlKey"
+    )
+    
     if (length(input$vacc) == 1 && input$vacc == "Y") {
       pet_records()$viewVaccineHistTimeline %>%
        rowid_to_column(var = "id") %>% 
         filter(pet_name %in% input$pet, current_flag %in% input$vacc) %>% 
-        mutate(title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", vet_name, sep = "")) %>% 
-        timevis()
+        mutate(content = paste0("<b>",content, "</b>", "&nbsp;&nbsp;&nbsp;<i>expires:&nbsp;", days_to_expiration,"&nbsp;days</i>"),
+          title = paste("Date Given: ", start, "\n", "Date Expires: ", end, "\n" ,"Vet: ", vet_name, sep = "")) %>% 
+        timevis(options = config)
     } else {
      vacc_data <- pet_records()$viewVaccineHistTimeline %>% 
         rowid_to_column(var = "id") %>% 
@@ -489,7 +498,7 @@ server <- function(input, output) {
           id = c("Rabies", "Distemper", "Bordetella (drops)", "Bordetella (injection)", "Flu", "Lepto", "Rattlesnake", "Fecal Test", "Heartworm Test"),
            content = c("Rabies", "Distemper", "Bordetella (drops)", "Bordetella (injection)", "Flu", "Lepto", "Rattlesnake", "Fecal Test", "Heartworm Test")
         )
-         timevis(vacc_data, groups = groups)
+         timevis(vacc_data, groups = groups, options = config)
       }
     
   })
@@ -502,7 +511,7 @@ server <- function(input, output) {
   cert <- reactive({
     if (!is.null(input$vaccine_history_timeline_selected)) {
     input$vaccine_history_timeline_data %>%
-    filter(id == input$vaccine_history_timeline_selected) %>% 
+    filter(id == input$vaccine_history_timeline_selected) %>%  
     pull(doc)
     }
   })  
@@ -515,7 +524,6 @@ server <- function(input, output) {
   
   # show vaccine related file if vaccine is selected in timeline
   output$vaccine_cert <- renderUI({
-    
     if (!is.null(input$vaccine_history_timeline_selected)) {
       
       if (!is.na(cert())) {
