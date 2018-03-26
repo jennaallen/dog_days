@@ -5,8 +5,8 @@
     color: #fd7e14;
 }
 
-h5 {
-  color: #20c997;
+h2 {
+  color: #fd7e14;
 }
 
 h3 {
@@ -61,9 +61,18 @@ h3 {
   border-width: 1px; /*controls border around item
 }*/
 
-#vaccine_history_timeline .vis-item {
+#vaccine_history_timeline .vis-item.current {
   border-color: #158CBA; /*this controls the line and dot color*/
   background-color: #158CBA; /*controls color of item box*/
+  /*font-size: 15pt; controls font of item*/
+  color: #fff; /*control text color of item text*/ 
+  /*box-shadow: 5px 5px 20px rgba(128,128,128, 0.5);
+  border-width: 1px; /*controls border around item*/
+}
+
+#vaccine_history_timeline .vis-item.past {
+  border-color: #999; /*this controls the line and dot color*/
+  background-color: #999; /*controls color of item box*/
   /*font-size: 15pt; controls font of item*/
   color: #fff; /*control text color of item text*/ 
   /*box-shadow: 5px 5px 20px rgba(128,128,128, 0.5);

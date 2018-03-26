@@ -38,7 +38,7 @@ ui <- fluidPage(
     ),
     
     titlePanel("Pet Records",
-               windowTitle = "Pets"),
+               windowTitle = "Pet Records"),
     
   sidebarLayout(
     
@@ -82,13 +82,14 @@ ui <- fluidPage(
                                                                                                                           htmlOutput(outputId = "test_info")
                                                                                                       )),
                                                                                                       column(4, wellPanel(h3("Prescribed Medications"),
-                                                                                                                          htmlOutput(outputId = "medication_info"))),
-                                                                                                      fluidRow(uiOutput("exam"))
+                                                                                                                          htmlOutput(outputId = "medication_info")))
+                                                                                                      
                                    #          column(6, wellPanel(h3("Past Medications"), 
                                    #                              dataTableOutput(outputId = "past_meds_table")
                                    #                              )
                                    #                 )
-                                   )),
+                                   ),
+                                   uiOutput("exam")),
                                    conditionalPanel(condition = "output.show_test_results", h3("Test Results"),
                                                     br(),
                                                     downloadButton("download_test_results", "Download PDF"),
@@ -223,6 +224,7 @@ server <- function(input, output) {
     req(input$pet)
     dob <- paste(strong("DOB:"), pet_records()$dimPets %>% 
                    filter(pet_name %in% input$pet) %>% 
+                   mutate(pet_dob = format(as.Date(pet_dob), format = "%m-%d-%Y")) %>% 
                    pull(pet_dob))
     species <- paste(strong("Species:"), pet_records()$dimPets %>% 
                        filter(pet_name %in% input$pet) %>% 
@@ -252,11 +254,11 @@ server <- function(input, output) {
                 spotRadius = 7, 
                 highlightSpotColor = "#999", 
                 fillColor = FALSE, 
-                lineColor = "#20c997", 
-                highlightLineColor = "#20c997",
+                lineColor = "#999", 
+                highlightLineColor = "#333",
                 lineWidth = 3,
-                maxSpotColor = "#6f42c1",
-                minSpotColor = "#6f42c1")
+                maxSpotColor = "#fd7e14",
+                minSpotColor = "#fd7e14")
   })
   
   
@@ -351,6 +353,7 @@ server <- function(input, output) {
         
         date <- paste(strong("Visit Date:"), pet_records()$viewVisitsVets %>% 
                         filter(visit_id == id()) %>%
+                        mutate(visit_date = format(as.Date(visit_date), format = "%m-%d-%Y")) %>% 
                         pull(visit_date))
         vet <- paste(strong("Vet:"), pet_records()$viewVisitsVets %>% 
                        filter(visit_id == id()) %>%
@@ -444,6 +447,7 @@ server <- function(input, output) {
     req(input$pet)
     pet_records()$viewMedsPetsVets %>%
       filter(pet_name %in% input$pet, med_current_flag == "Y") %>%
+      mutate(med_start_date = format(as.Date(med_start_date), format = "%m-%d-%Y")) %>% 
       select(Medication = med_name, "Prescribing Vet" =  vet_name, "Start Date" = med_start_date, Dosage = med_dosage, Frequency = med_dosage_freq, Category = med_category) %>% 
       datatable(options = list(pageLength = 5, dom = 'ltip'),
                 rownames = FALSE)
@@ -455,6 +459,7 @@ server <- function(input, output) {
     pet_records()$viewMedsPetsVets %>%
       filter(pet_name %in% input$pet, med_current_flag == "N") %>%
       arrange(desc(med_end_date)) %>%
+      mutate(med_end_date = format(as.Date(med_end_date), format = "%m-%d-%Y")) %>% 
       select(Medication = med_name, "Prescribing Vet" = vet_name, "End Date" = med_end_date, Dosage = med_dosage, Frequency = med_dosage_freq, Category = med_category) %>% 
       datatable(options = list(pageLength = 10),
                 rownames = FALSE)
@@ -465,9 +470,9 @@ server <- function(input, output) {
     req(input$pet)
     pet_records()$viewVisitsPetsVets %>%
       filter(pet_name %in% input$pet, vet_name != "No Vet") %>%
-      select(vet_name, vet_phone, vet_website, vet_email, vet_state) %>% 
+      select(Vet = vet_name, Phone = vet_phone, Website = vet_website, Email = vet_email, State = vet_state) %>% 
       distinct() %>% 
-      arrange(vet_name) %>%
+      arrange(Vet) %>%
       datatable(options = list(pageLength = 10, dom = 'ltip'),
                 rownames = FALSE)
   })
