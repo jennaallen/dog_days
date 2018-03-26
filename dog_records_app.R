@@ -8,7 +8,7 @@ library(magick)
 library(shinythemes)
 library(RMySQL)
 
-# source("utils.R")
+ source("utils.R")
 
 # pool <- dbPool(
 #   drv = RMySQL::MySQL(),
@@ -89,6 +89,10 @@ ui <- fluidPage(
                                    #                              )
                                    #                 )
                                    ),
+                                   conditionalPanel(condition = "output.show_exam", h3("Exam Notes"),
+                                                    br(),
+                                                    downloadButton("download_exam", "Download PDF"),
+                                                    br(), br()),
                                    uiOutput("exam")),
                                    conditionalPanel(condition = "output.show_test_results", h3("Test Results"),
                                                     br(),
@@ -141,54 +145,101 @@ ui <- fluidPage(
     )
   )
 
+# Getting the data outside of server so data is created once and shared across all user sessions (within the same R process)
+pet_records <- reactivePoll(86400000, session,
+                            checkFunc = function() {
+                              con <- dbConnect(MySQL(),
+                                               username = Sys.getenv("RDSpetsuser"),
+                                               password = Sys.getenv("RDSpetspw"),
+                                               host = Sys.getenv("RDShost"),
+                                               dbname = 'PetRecords')
+                              
+                              max_date <- dbGetQuery(con, "SELECT MAX(updated_date) AS max_updated_date 
+                                                     FROM viewMaxUpdatedDates")
+                              
+                              # disconnect from RDS
+                              dbDisconnect(con)
+                              
+                              return(max_date)
+                              
+                            }, 
+                            valueFunc = function() {
+                              con <- dbConnect(MySQL(),
+                                               username = Sys.getenv("RDSpetsuser"),
+                                               password = Sys.getenv("RDSpetspw"),
+                                               host = Sys.getenv("RDShost"),
+                                               dbname = 'PetRecords')
+                              
+                              tables <- c("dimPets",
+                                          "dimTests", 
+                                          "viewVisitsPets", 
+                                          "viewMedHistTimeline", 
+                                          "viewVisitsVets", 
+                                          "viewVisitsTests", 
+                                          "viewVisitsMeds", 
+                                          "viewMedsPetsVets", 
+                                          "viewVisitsPetsVets", 
+                                          "viewVaccineHistTimeline")
+                              
+                              df_list <- setNames(map(tables, ~ dbReadTable(con, .)), tables)
+                              
+                              # disconnect from RDS
+                              dbDisconnect(con)
+                              
+                              return(df_list)
+                            }
+                            
+)
+
+
 
 # Server
 server <- function(input, output) {
   
-  pet_records <- reactivePoll(86400000, session,
-                              checkFunc = function() {
-                                con <- dbConnect(MySQL(),
-                                       username = Sys.getenv("RDSpetsuser"),
-                                  password = Sys.getenv("RDSpetspw"),
-                                  host = Sys.getenv("RDShost"),
-                                  dbname = 'PetRecords')
-                                
-                 max_date <- dbGetQuery(con, "SELECT MAX(updated_date) AS max_updated_date 
-                            FROM viewMaxUpdatedDates")
-                 
-                 # disconnect from RDS
-                 dbDisconnect(con)
-                 
-                 return(max_date)
-                 
-               }, 
-               valueFunc = function() {
-                 con <- dbConnect(MySQL(),
-                                  username = Sys.getenv("RDSpetsuser"),
-                                  password = Sys.getenv("RDSpetspw"),
-                                  host = Sys.getenv("RDShost"),
-                                  dbname = 'PetRecords')
-                 
-                 tables <- c("dimPets",
-                             "dimTests", 
-                             "viewVisitsPets", 
-                             "viewMedHistTimeline", 
-                             "viewVisitsVets", 
-                             "viewVisitsTests", 
-                             "viewVisitsMeds", 
-                             "viewMedsPetsVets", 
-                             "viewVisitsPetsVets", 
-                             "viewVaccineHistTimeline")
-                 
-                 df_list <- setNames(map(tables, ~ dbReadTable(con, .)), tables)
-                 
-                 # disconnect from RDS
-                 dbDisconnect(con)
-                 
-                 return(df_list)
-               }
-    
-  )
+  # pet_records <- reactivePoll(86400000, session,
+  #                             checkFunc = function() {
+  #                               con <- dbConnect(MySQL(),
+  #                                      username = Sys.getenv("RDSpetsuser"),
+  #                                 password = Sys.getenv("RDSpetspw"),
+  #                                 host = Sys.getenv("RDShost"),
+  #                                 dbname = 'PetRecords')
+  #                               
+  #                max_date <- dbGetQuery(con, "SELECT MAX(updated_date) AS max_updated_date 
+  #                           FROM viewMaxUpdatedDates")
+  #                
+  #                # disconnect from RDS
+  #                dbDisconnect(con)
+  #                
+  #                return(max_date)
+  #                
+  #              }, 
+  #              valueFunc = function() {
+  #                con <- dbConnect(MySQL(),
+  #                                 username = Sys.getenv("RDSpetsuser"),
+  #                                 password = Sys.getenv("RDSpetspw"),
+  #                                 host = Sys.getenv("RDShost"),
+  #                                 dbname = 'PetRecords')
+  #                
+  #                tables <- c("dimPets",
+  #                            "dimTests", 
+  #                            "viewVisitsPets", 
+  #                            "viewMedHistTimeline", 
+  #                            "viewVisitsVets", 
+  #                            "viewVisitsTests", 
+  #                            "viewVisitsMeds", 
+  #                            "viewMedsPetsVets", 
+  #                            "viewVisitsPetsVets", 
+  #                            "viewVaccineHistTimeline")
+  #                
+  #                df_list <- setNames(map(tables, ~ dbReadTable(con, .)), tables)
+  #                
+  #                # disconnect from RDS
+  #                dbDisconnect(con)
+  #                
+  #                return(df_list)
+  #              }
+  #   
+  # )
   
   # Check boxes
   output$all_pets <- renderUI({
@@ -402,17 +453,27 @@ server <- function(input, output) {
     if (show_visit_details_fun()) {
       
       if (!is.na(exam())) {
-        exam() %>%
+      tmpfile <- exam() %>%
           str_replace("https://s3.amazonaws.com", "s3:/") %>%
           get_object() %>%
-          writeBin("www/exam.pdf") # tempfile(fileext = ".pdf")
-        tags$iframe(style = "height:1400px; width:100%", src = "exam.pdf")
+          writeBin_filepath(tempfile(fileext = ".pdf", tmpdir = "www/tmp")) %>% 
+          str_replace("www/","")
+        tags$iframe(style = "height:1400px; width:100%", src = tmpfile)
       } else {
         h3("No Exam Notes Available")
       }
     }
-    
   })
+  
+  # Download test results
+  output$download_exam <- downloadHandler(
+    filename = function() {
+      "exam.pdf"
+    },
+    content = function(file) {
+      file.copy(paste0("www/", tmpfile), file) # need to fix this
+    }
+  )
   
  # show test results file if test is selected in timeline
   output$test_results <- renderUI({
@@ -577,7 +638,11 @@ server <- function(input, output) {
   #   
   #   timevis(medincines, groups = groups)
   # })
-    
+  onSessionEnded(function() {
+   unlink(list.files("www/tmp", full.names = TRUE)) # not sure if this will work because what if someone else is using it then anything they have clicked on will be deleted too
+ })
+ 
+ 
 }
 
 # Create a Shiny app object
