@@ -196,51 +196,6 @@ pet_records <- reactivePoll(86400000, session,
 # Server
 server <- function(input, output) {
   
-  # pet_records <- reactivePoll(86400000, session,
-  #                             checkFunc = function() {
-  #                               con <- dbConnect(MySQL(),
-  #                                      username = Sys.getenv("RDSpetsuser"),
-  #                                 password = Sys.getenv("RDSpetspw"),
-  #                                 host = Sys.getenv("RDShost"),
-  #                                 dbname = 'PetRecords')
-  #                               
-  #                max_date <- dbGetQuery(con, "SELECT MAX(updated_date) AS max_updated_date 
-  #                           FROM viewMaxUpdatedDates")
-  #                
-  #                # disconnect from RDS
-  #                dbDisconnect(con)
-  #                
-  #                return(max_date)
-  #                
-  #              }, 
-  #              valueFunc = function() {
-  #                con <- dbConnect(MySQL(),
-  #                                 username = Sys.getenv("RDSpetsuser"),
-  #                                 password = Sys.getenv("RDSpetspw"),
-  #                                 host = Sys.getenv("RDShost"),
-  #                                 dbname = 'PetRecords')
-  #                
-  #                tables <- c("dimPets",
-  #                            "dimTests", 
-  #                            "viewVisitsPets", 
-  #                            "viewMedHistTimeline", 
-  #                            "viewVisitsVets", 
-  #                            "viewVisitsTests", 
-  #                            "viewVisitsMeds", 
-  #                            "viewMedsPetsVets", 
-  #                            "viewVisitsPetsVets", 
-  #                            "viewVaccineHistTimeline")
-  #                
-  #                df_list <- setNames(map(tables, ~ dbReadTable(con, .)), tables)
-  #                
-  #                # disconnect from RDS
-  #                dbDisconnect(con)
-  #                
-  #                return(df_list)
-  #              }
-  #   
-  # )
-  
   # Check boxes
   output$all_pets <- renderUI({
     pets <- pet_records()$dimPets %>% 
@@ -338,27 +293,40 @@ server <- function(input, output) {
     fitWindow("med_history_timeline")
   })
   
+  # define reactiveValues to prevent errors when user has an item selected in a timeline and then changes the pet filter
+  values <- reactiveValues(med_tl_selected = NULL, vacc_tl_selected = NULL )
+  
+  # pass value of input$med_history_timeline_selected to reactive value
+  observe( {
+    values$med_tl_selected <- input$med_history_timeline_selected
+  })
+  
+  #clear selection if different pet is chosen
+  observeEvent(input$pet, {
+    values$med_tl_selected <- NULL
+  })
+  
   # get all the variables needed for use in the following render functions
   
   get_group <- reactive({
-    if (!is.null(input$med_history_timeline_selected)) {
+    if (!is.null(values$med_tl_selected)) {
       input$med_history_timeline_data %>%
-        filter(id == input$med_history_timeline_selected) %>%
+        filter(id == values$med_tl_selected) %>%
         pull(group)
     }
   })
   
   show_visit_details_fun <- reactive({
-    !is.null(input$med_history_timeline_selected) && get_group() == "med"
+    !is.null(values$med_tl_selected) && get_group() == "med"
   })
   
   show_test_results_fun <- reactive({
-    !is.null(input$med_history_timeline_selected) && get_group() == "test"
+    !is.null(values$med_tl_selected) && get_group() == "test"
   })
   
   id <- reactive({
-    if (!is.null(input$med_history_timeline_selected)) {
-   input$med_history_timeline_selected %>% 
+    if (!is.null(values$med_tl_selected)) {
+   values$med_tl_selected %>% 
       str_extract("\\d+") %>% 
       as.integer()
     }
@@ -575,23 +543,33 @@ server <- function(input, output) {
     fitWindow("vaccine_history_timeline")
   })
   
+  # pass value of input$vaccine_history_timeline_selected to reactive value
+  observe( {
+    values$vacc_tl_selected <- input$vaccine_history_timeline_selected
+  })
+  
+  #clear selection if different pet is chosen
+  observeEvent(input$pet, {
+    values$vacc_tl_selected <- NULL
+  })
+  
   cert <- reactive({
-    if (!is.null(input$vaccine_history_timeline_selected)) {
+    if (!is.null(values$vacc_tl_selected)) {
     input$vaccine_history_timeline_data %>%
-    filter(id == input$vaccine_history_timeline_selected) %>%  
+    filter(id == values$vacc_tl_selected) %>%  
     pull(doc)
     }
   })  
   
   # create server to ui variable for vaccine certification conditional panel
   output$show_vaccine_cert <- reactive({
-    !is.null(input$vaccine_history_timeline_selected) && !is.na(cert())
+    !is.null(values$vacc_tl_selected) && !is.na(cert())
   })
   outputOptions(output, "show_vaccine_cert", suspendWhenHidden = FALSE)
   
   # show vaccine related file if vaccine is selected in timeline
   output$vaccine_cert <- renderUI({
-    if (!is.null(input$vaccine_history_timeline_selected)) {
+    if (!is.null(values$vacc_tl_selected)) {
       
       if (!is.na(cert())) {
         cert() %>% 
