@@ -8,7 +8,7 @@ library(magick)
 library(shinythemes)
 library(RMySQL)
 
- source("utils.R")
+ # source("utils.R")
 
 # pool <- dbPool(
 #   drv = RMySQL::MySQL(),
@@ -105,7 +105,7 @@ ui <- fluidPage(
                                    ), 
                                    tabPanel(div(icon("heartbeat"), "Vaccine History"),
                                             wellPanel(h3("Vaccine Timeline"),
-                                                      h6("Select an item to view vaccine certificate (where available) below timeline"),
+                                                      h5("Select an item to view vaccine certificate (where available). The information is shown below the timeline."),
                                                       checkboxGroupInput(inputId = "vacc",
                                                                          label = NULL,
                                                                          choices = c("Current Vaccines" = "Y", 
@@ -429,6 +429,7 @@ server <- function(input, output) {
       
       pet_records()$viewVisitsTests %>%
           filter(visit_id == id(), !(test_category %in% "routine")) %>% 
+          mutate_at(vars(test_name), funs(replace(., is.na(.), "None"))) %>% 
           pull(test_name) %>% 
           paste(collapse  = "<br>")
     }
@@ -439,8 +440,9 @@ server <- function(input, output) {
     if (show_visit_details_fun()) {
         
       pet_records()$viewVisitsMeds %>%
-          filter(visit_id == id(), !(med_category %in% "flea and tick")) %>% 
+          filter(visit_id == id(), !(med_category %in% c("flea and tick", "heartworm"))) %>% 
           select(med_name) %>% 
+          mutate_at(vars(med_name), funs(replace(., is.na(.), "None"))) %>% 
           distinct() %>% 
           pull() %>% 
           paste(collapse  = "<br>")
@@ -453,12 +455,11 @@ server <- function(input, output) {
     if (show_visit_details_fun()) {
       
       if (!is.na(exam())) {
-      tmpfile <- exam() %>%
+      exam() %>%
           str_replace("https://s3.amazonaws.com", "s3:/") %>%
           get_object() %>%
-          writeBin_filepath(tempfile(fileext = ".pdf", tmpdir = "www/tmp")) %>% 
-          str_replace("www/","")
-        tags$iframe(style = "height:1400px; width:100%", src = tmpfile)
+          writeBin("www/exam.pdf")
+        tags$iframe(style = "height:1400px; width:100%", src = "exam.pdf")
       } else {
         h3("No Exam Notes Available")
       }
@@ -471,7 +472,7 @@ server <- function(input, output) {
       "exam.pdf"
     },
     content = function(file) {
-      file.copy(paste0("www/", tmpfile), file) # need to fix this
+      file.copy("www/exam.pdf", file)
     }
   )
   
