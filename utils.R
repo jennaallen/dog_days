@@ -4,5 +4,6 @@ prettyDate <- function(d) {
 
 writeBin_filepath <- function(x, path) {
   writeBin(x, path)
+  addResourcePath("private", normalizePath(tempdir()))
   return(invisible(path))
 }

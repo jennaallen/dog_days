@@ -24,6 +24,10 @@ fluidPage(
                  
                  hr(), # horizontal line for visual separation
                  
+                 uiOutput("dates"),
+                 
+                 hr(), # horizontal line for visual separation
+                 
                  # display relevent pet information ####
                  imageOutput("pet_image", inline = TRUE),
                  br(), br(),
@@ -48,13 +52,12 @@ fluidPage(
               tabsetPanel(tabPanel(div(icon("medkit"), "Medical History"),
                                    # medical history and test timeline ####
                                    wellPanel(h3("Medical History and Tests Timeline"),
-                                             h5("Select an item to view more details or test results (where available). The information is shown below the timeline."),
-                                             br(),
+                                             h5("Click an item to view more details or test results (where available). The information is shown below the timeline."),
                                              checkboxInput(inputId = "routine_visits",
                                                           label = "Show routine visits",
                                                           value = FALSE),
                                              timevisOutput("med_history_timeline"),
-                                             fluidRow(column(2, actionButton("medfit", "Reset zoom")
+                                             fluidRow(column(2, actionButton("medfit", "Fit All Items")
                                                              ),
                                                       column(10, h4(htmlOutput(outputId = "helpful_text"))
                                                              )
@@ -104,7 +107,7 @@ fluidPage(
                                                                 selected = "Y"
                                                                 ),
                                              timevisOutput("vaccine_history_timeline"),
-                                             fluidRow(column(2, actionButton("vaccinefit", "Reset zoom")
+                                             fluidRow(column(2, actionButton("vaccinefit", "Fit All Items")
                                                              ), 
                                                       column(10, h4(htmlOutput(outputId = "more_helpful_text"))
                                                              )

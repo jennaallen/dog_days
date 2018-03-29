@@ -18,6 +18,9 @@ library(aws.s3)
 library(sparkline)
 library(magick)
 library(RMySQL)
+library(lubridate)
+
+source("utils.R")
 
 # getting the data outside of server, so data is created once 
 # and shared across all user sessions (within the same R process)
@@ -67,7 +70,7 @@ pet_records <- reactivePoll(86400000, session,
                             }
                            )
 
-function(input, output) {
+function(input, output, session) {
   # create options for pet selection radio button ####
   output$all_pets <- renderUI({
     pets <- pet_records()$dimPets %>% 
@@ -153,12 +156,31 @@ function(input, output) {
       select(Date = visit_date, Weight)
   })
   
+  # create date selections for med timeline date range input ####
+  output$dates <- renderUI({
+    min_date <- pet_records()$viewRoutineMedHistTimeline %>% 
+      select(start) %>%
+      summarize(min(start)) %>% 
+      pull()
+    
+    dateRangeInput(inputId = "date_range", 
+                   label = "Select Date Range:", 
+                   start = Sys.Date() %m-% months(18), 
+                   end = Sys.Date() %m+% months(1), 
+                   min = ymd(min_date) %m-% months(2),
+                   format = "mm-dd-yyyy",
+                   startview = "years",
+                   separator = "-")
+  })
+  
   # create medical and tests history timeline ####
   output$med_history_timeline <- renderTimevis({
     req(input$pet)
     
     config <- list(
-      zoomKey = "ctrlKey"
+      zoomKey = "ctrlKey",
+      start = input$date_range[1],
+      end = input$date_range[2]
     )
     
     if (input$routine_visits) {
@@ -185,9 +207,19 @@ function(input, output) {
     timevis(grouped_data, groups = groups, options = config)
   })
   
+  observeEvent(input$date_range, {
+    setWindow("med_history_timeline", input$date_range[1], input$date_range[2])
+  })
+  
   # reset timeline view on button push
   observeEvent(input$medfit, {
     fitWindow("med_history_timeline")
+  })
+  
+  observeEvent(input$med_history_timeline_window, {
+    updateDateRangeInput(session, inputId = "date_range",
+                         start = prettyDate(input$med_history_timeline_window[1]),
+                         end = prettyDate(input$med_history_timeline_window[2]))
   })
   
   # define reactiveValues to prevent errors when user has an item selected in a timeline 
