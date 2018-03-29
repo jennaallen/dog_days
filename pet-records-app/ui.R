@@ -50,6 +50,9 @@ fluidPage(
                                    wellPanel(h3("Medical History and Tests Timeline"),
                                              h5("Select an item to view more details or test results (where available). The information is shown below the timeline."),
                                              br(),
+                                             checkboxInput(inputId = "routine_visits",
+                                                          label = "Show routine visits",
+                                                          value = FALSE),
                                              timevisOutput("med_history_timeline"),
                                              fluidRow(column(2, actionButton("medfit", "Reset zoom")
                                                              ),

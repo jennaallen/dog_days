@@ -161,16 +161,27 @@ function(input, output) {
       zoomKey = "ctrlKey"
     )
     
-    grouped_data <- pet_records()$viewMedHistTimeline %>% 
-      filter(pet_name %in% input$pet) %>% 
-      mutate(className = group,
-             title = paste("Date:", format(as.Date(start), format = "%m-%d-%Y")))
-    
-    groups <- data.frame(
-      id = c("med", "test"),
-      content = c("Medical History", "Test History")
-    )
-    
+    if (input$routine_visits) {
+      grouped_data <- pet_records()$viewRoutineMedHistTimeline %>% 
+        filter(pet_name %in% input$pet) %>% 
+        mutate(className = group,
+               title = paste("Date:", format(as.Date(start), format = "%m-%d-%Y")))
+      
+      groups <- data.frame(
+        id = c("routine", "med", "test"),
+        content = c("Routine", "Medical History", "Test History")
+      )
+    } else {
+      grouped_data <- pet_records()$viewMedHistTimeline %>% 
+        filter(pet_name %in% input$pet) %>% 
+        mutate(className = group,
+               title = paste("Date:", format(as.Date(start), format = "%m-%d-%Y")))
+      
+      groups <- data.frame(
+        id = c("med", "test"),
+        content = c("Medical History", "Test History")
+        )
+    }
     timevis(grouped_data, groups = groups, options = config)
   })
   
