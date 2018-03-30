@@ -209,6 +209,7 @@ function(input, output, session) {
   
   observeEvent(input$date_range, {
     setWindow("med_history_timeline", input$date_range[1], input$date_range[2])
+    setWindow("vaccine_history_timeline", input$date_range[1], input$date_range[2])
   })
   
   # reset timeline view on button push
@@ -220,6 +221,12 @@ function(input, output, session) {
     updateDateRangeInput(session, inputId = "date_range",
                          start = prettyDate(input$med_history_timeline_window[1]),
                          end = prettyDate(input$med_history_timeline_window[2]))
+  })
+  
+  observeEvent(input$vaccine_history_timeline_window, {
+    updateDateRangeInput(session, inputId = "date_range",
+                         start = prettyDate(input$vaccine_history_timeline_window[1]),
+                         end = prettyDate(input$vaccine_history_timeline_window[2]))
   })
   
   # define reactiveValues to prevent errors when user has an item selected in a timeline 
