@@ -24,11 +24,7 @@ fluidPage(
                  uiOutput("all_pets"),
                  
                  hr(), # horizontal line for visual separation
-                 
-                 uiOutput("dates"),
-                 
-                 hr(), # horizontal line for visual separation
-                 
+
                  # display relevent pet information ####
                  imageOutput("pet_image", inline = TRUE),
                  br(), br(),
@@ -53,18 +49,43 @@ fluidPage(
               tabsetPanel(id = "tabs", tabPanel(div(icon("medkit"), "Medical History"),
                                    # medical history and test timeline ####
                                    wellPanel(h3("Medical History and Tests Timeline"),
+                                             fluidRow(column(3, uiOutput("med_tl_dates")
+                                                             ),
+                                                      column(5, checkboxInput(inputId = "routine_visits",
+                                                                              label = "Show routine visits",
+                                                                              value = FALSE)
+                                                             ),
+                                                      column(4, h4(htmlOutput(outputId = "helpful_text"))
+                                                             )
+                                                      ),
                                              h5("Click an item to view more details or test results (where available). The information is shown below the timeline."),
-                                             checkboxInput(inputId = "routine_visits",
-                                                          label = "Show routine visits",
-                                                          value = FALSE),
+                                             # checkboxInput(inputId = "routine_visits",
+                                             #              label = "Show routine visits",
+                                             #              value = FALSE),
                                              withSpinner(timevisOutput("med_history_timeline")
                                                          ),
-                                             fluidRow(column(2, actionButton("medfit", "Fit All Items")
-                                                             ),
-                                                      column(10, h4(htmlOutput(outputId = "helpful_text"))
+                                             fluidRow(column(12, div(id = "tl_button", actionButton("medfit", "Fit All Items"),
+                                                             actionButton("meddefault", "Reset to Default")
+                                                                    )
                                                              )
                                                       )
                                              ),
+                                   # routine details ####
+                                   conditionalPanel(condition = "output.show_routine_details",
+                                                    fluidRow(column(4, wellPanel(h3("Visit Details"),
+                                                                                 htmlOutput(outputId = "routine_visit_info")
+                                                                                 )
+                                                                    ),
+                                                             column(4, wellPanel(h3("Routine Tests"),
+                                                                                 tableOutput(outputId = "routine_test_info")
+                                                                                 )
+                                                                    ),
+                                                             column(4, wellPanel(h3("Prescribed Medications"),
+                                                                                 htmlOutput(outputId = "routine_medication_info"))
+                                                                    )
+                                                             )
+                                                    
+                                                    ),
                                    # visit details ####
                                    conditionalPanel(condition = "output.show_visit_details", 
                                                     fluidRow(column(4, wellPanel(h3("Visit Details"),

@@ -157,20 +157,19 @@ function(input, output, session) {
   })
   
   # create date selections for med timeline date range input ####
-  output$dates <- renderUI({
+  output$med_tl_dates <- renderUI({
     min_date <- pet_records()$viewRoutineMedHistTimeline %>% 
       select(start) %>%
       summarize(min(start)) %>% 
       pull()
     
-    dateRangeInput(inputId = "date_range", 
+    dateRangeInput(inputId = "med_tl_date_range", 
                    label = "Select Date Range:", 
                    start = Sys.Date() %m-% months(18), 
                    end = Sys.Date() %m+% months(1), 
                    min = ymd(min_date) %m-% months(2),
                    format = "mm-dd-yyyy",
-                   startview = "years",
-                   separator = "-")
+                   startview = "years")
   })
   
   # create medical and tests history timeline ####
@@ -179,8 +178,8 @@ function(input, output, session) {
     
     config <- list(
       zoomKey = "ctrlKey",
-      start = input$date_range[1],
-      end = input$date_range[2]
+      start = input$med_tl_date_range[1],
+      end = input$med_tl_date_range[2]
     )
     
     if (input$routine_visits) {
@@ -207,27 +206,21 @@ function(input, output, session) {
     timevis(grouped_data, groups = groups, options = config)
   })
   
-  observeEvent(input$date_range, {
-    setWindow("med_history_timeline", input$date_range[1], input$date_range[2])
-    setWindow("vaccine_history_timeline", input$date_range[1], input$date_range[2])
+  observeEvent(input$med_tl_date_range, {
+    setWindow("med_history_timeline", input$med_tl_date_range[1], input$med_tl_date_range[2])
   })
-  
+
   # reset timeline view on button push
   observeEvent(input$medfit, {
     fitWindow("med_history_timeline")
   })
-  
+
   observeEvent(input$med_history_timeline_window, {
-    updateDateRangeInput(session, inputId = "date_range",
+    updateDateRangeInput(session, inputId = "med_tl_date_range",
                          start = prettyDate(input$med_history_timeline_window[1]),
                          end = prettyDate(input$med_history_timeline_window[2]))
   })
   
-  observeEvent(input$vaccine_history_timeline_window, {
-    updateDateRangeInput(session, inputId = "date_range",
-                         start = prettyDate(input$vaccine_history_timeline_window[1]),
-                         end = prettyDate(input$vaccine_history_timeline_window[2]))
-  })
   
   # define reactiveValues to prevent errors when user has an item selected in a timeline 
   # and then changes the pet filter
@@ -260,6 +253,10 @@ function(input, output, session) {
     }
   })
   
+  show_routine_fun <- reactive({
+    !is.null(values$med_tl_selected) && get_group() == "routine"
+  })
+  
   show_visit_details_fun <- reactive({
     !is.null(values$med_tl_selected) && get_group() == "med"
   })
@@ -285,7 +282,7 @@ function(input, output, session) {
   })
   
   exam <- reactive({
-    if (show_visit_details_fun()) {
+    if (show_visit_details_fun() | show_routine_fun()) {
       pet_records()$viewVisitsPets %>% 
         filter(visit_id == id()) %>%
         pull(visit_exam_doc)
@@ -294,6 +291,11 @@ function(input, output, session) {
   
   # create server to ui variables for conditional panels ####
   # create server to ui variable for visit details conditional panel
+  output$show_routine_details <- reactive({
+    show_routine_fun()
+  })
+  outputOptions(output, "show_routine_details", suspendWhenHidden = FALSE)
+  
   output$show_visit_details <- reactive({
     show_visit_details_fun()
   })
@@ -307,9 +309,63 @@ function(input, output, session) {
   
   # create server to ui variable for exam conditional panel
   output$show_exam <- reactive({
-    show_visit_details_fun() && !is.na(exam())
+    (show_visit_details_fun() | show_routine_fun()) && !is.na(exam())
   })
   outputOptions(output, "show_exam", suspendWhenHidden = FALSE)
+  
+  # get routine details ####
+  output$routine_visit_info <- renderText({
+    if (show_routine_fun()) {
+      date <- paste(strong("Visit Date:"), pet_records()$viewVisitsVets %>% 
+                      filter(visit_id == id()) %>%
+                      mutate(visit_date = format(as.Date(visit_date), format = "%m-%d-%Y")) %>% 
+                      pull(visit_date))
+      vet <- paste(strong("Vet:"), pet_records()$viewVisitsVets %>% 
+                     filter(visit_id == id()) %>%
+                     pull(vet_name))
+      doctor <- paste(strong("Doctor:"), pet_records()$viewVisitsVets %>%
+                        filter(visit_id == id()) %>%
+                        pull(visit_doctor))
+      vet_phone <- paste(strong("Vet Phone:"), pet_records()$viewVisitsVets %>%
+                           filter(visit_id == id()) %>%
+                           pull(vet_phone))
+      visit_category <- pet_records()$viewVisitsVets %>%
+        filter(visit_id == id()) %>%
+        pull(visit_category)
+      # notes for visits tagged as medical and routine are shown when clicking medical item
+      if (str_detect(visit_category, "medical")) {
+        notes <- NA
+      } else {
+        notes <- paste(strong("Visit Information:"), pet_records()$viewVisitsVets %>%
+                         filter(visit_id == id()) %>%
+                         pull(visit_notes))
+      }
+      
+      paste(date, vet, doctor, vet_phone, notes, sep = "<br>")
+    }
+  })
+  
+  output$routine_test_info <- renderTable({
+    if (show_routine_fun()) {
+      pet_records()$viewVisitsTests %>%
+        filter(visit_id == id(), test_category %in% "routine") %>% 
+        mutate_at(vars(test_name, test_result), funs(replace(., is.na(.), "None"))) %>% 
+        select(Name = test_name, Result = test_result) 
+    }
+  })
+  
+  output$routine_medication_info <- renderText({
+    if (show_routine_fun()) {
+      pet_records()$viewVisitsMeds %>%
+        filter(visit_id == id(), med_category %in% c("flea and tick", "heartworm")) %>% 
+        select(med_name) %>% 
+        mutate_at(vars(med_name), funs(replace(., is.na(.), "None"))) %>% 
+        distinct() %>% 
+        pull() %>% 
+        paste(collapse  = "<br>")
+    }
+  })
+  
   
   # get visit details ####
   output$visit_info <- renderText({
@@ -358,7 +414,7 @@ function(input, output, session) {
   
   # show exam file if visit is selected in timeline ####
   output$exam <- renderUI({
-    if (show_visit_details_fun()) {
+    if (show_visit_details_fun() | show_routine_fun()) {
       if (!is.na(exam())) {
         exam() %>%
           str_replace("https://s3.amazonaws.com", "s3:/") %>%

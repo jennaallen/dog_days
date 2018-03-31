@@ -69,6 +69,10 @@ form.well {
   border-width: 1px; /*controls border around item
 }*/
 
+#tl_button .btn {
+  margin-right: 7px;
+}
+
 #vaccine_history_timeline .vis-item.current {
   border-color: #158CBA; /*this controls the line and dot color*/
   background-color: #158CBA; /*controls color of item box*/
