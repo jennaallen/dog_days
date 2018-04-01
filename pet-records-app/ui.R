@@ -46,7 +46,7 @@ fluidPage(
                  ),
     
     mainPanel(width = 10, 
-              tabsetPanel(id = "tabs", tabPanel(div(icon("medkit"), "Medical History"),
+              tabsetPanel(tabPanel(div(icon("medkit"), "Medical History"),
                                    # medical history and test timeline ####
                                    wellPanel(h3("Medical History and Tests Timeline"),
                                              h5("Click an item to view more details or test results (where available). The information is shown below the timeline."),
