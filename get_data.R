@@ -4,12 +4,13 @@ library(readr)
 library(RMySQL)
 library(lubridate)
 
-dimPets <- read_csv("dimDogs.csv")
-dimVets <- read_csv("dimVets.csv")
-dimVisits_orig <- read_csv("dimVisits.csv")
-dimTests_orig <- read_csv("dimTests.csv")
-dimMeds_orig <- read_csv("dimMeds.csv")
-dimVaccines_orig <- read_csv("dimVaccines.csv")
+dimPets <- read_csv("database/modified/dimPets.csv", na = "NULL")
+dimVets <- read_csv("database/modified/dimVets.csv", na = "NULL")
+dimVisits_orig <- read_csv("database/modified/dimVisits.csv", na = "NULL")
+dimTests_orig <- read_csv("database/modified/dimTests.csv", na = "NULL")
+dimMeds_orig <- read_csv("database/modified/dimMeds.csv", na = "NULL")
+dimVaccines_orig <- read_csv("database/modified/dimVaccines.csv", na = "NULL")
+
 
 
 # connect to AWS RDS
