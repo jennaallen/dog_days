@@ -1,11 +1,4 @@
-#
-# This is the server logic of a Shiny web application. You can run the 
-# application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-# 
-#    http://shiny.rstudio.com/
-#
+# Web app to display pet records and keep track of visits, test results, vaccines, etc.
 
 library(shiny)
 library(dplyr)
@@ -169,7 +162,8 @@ function(input, output, session) {
                    end = Sys.Date() %m+% months(1), 
                    min = ymd(min_date) %m-% months(2),
                    format = "mm-dd-yyyy",
-                   startview = "years")
+                   startview = "years",
+                   width = "75%")
   })
   
   # create medical and tests history timeline ####
@@ -206,15 +200,24 @@ function(input, output, session) {
     timevis(grouped_data, groups = groups, options = config)
   })
   
+  # update med timeline date range based on user input and button pushes ####
   observeEvent(input$med_tl_date_range, {
     setWindow("med_history_timeline", input$med_tl_date_range[1], input$med_tl_date_range[2])
   })
 
-  # reset timeline view on button push
-  observeEvent(input$medfit, {
+  # fit all items on timeline on button push
+  observeEvent(input$med_fit, {
     fitWindow("med_history_timeline")
   })
-
+  
+  # change timeline back to default window
+  observeEvent(input$med_default, {
+    setWindow("med_history_timeline", Sys.Date() %m-% months(18), Sys.Date() %m+% months(1))
+    
+    # updateCheckboxInput(session, inputId = "routine_visits", value = FALSE) for some reason adding this doesn't change timeline window and 
+    # is in conflict with the updateDateRangeInput below
+  })
+  
   observeEvent(input$med_history_timeline_window, {
     updateDateRangeInput(session, inputId = "med_tl_date_range",
                          start = prettyDate(input$med_history_timeline_window[1]),
@@ -223,7 +226,7 @@ function(input, output, session) {
   
   
   # define reactiveValues to prevent errors when user has an item selected in a timeline 
-  # and then changes the pet filter
+  # and then changes the pet filter or routine visits checkbox
   # reactive values ####
   values <- reactiveValues(med_tl_selected = NULL, vacc_tl_selected = NULL )
   
@@ -232,8 +235,8 @@ function(input, output, session) {
     values$med_tl_selected <- input$med_history_timeline_selected
   })
   
-  # clear selection if different pet is chosen
-  observeEvent(input$pet, {
+  # clear selection if different pet is chosen or routine visits is checked or unchecked
+  observeEvent(c(input$pet, input$routine_visits), {
     values$med_tl_selected <- NULL
   })
   
@@ -290,12 +293,13 @@ function(input, output, session) {
   })
   
   # create server to ui variables for conditional panels ####
-  # create server to ui variable for visit details conditional panel
+  # create server to ui variable for routine info conditional panel
   output$show_routine_details <- reactive({
     show_routine_fun()
   })
   outputOptions(output, "show_routine_details", suspendWhenHidden = FALSE)
   
+  # create server to ui variable for visit details conditional panel
   output$show_visit_details <- reactive({
     show_visit_details_fun()
   })
@@ -347,22 +351,34 @@ function(input, output, session) {
   
   output$routine_test_info <- renderTable({
     if (show_routine_fun()) {
-      pet_records()$viewVisitsTests %>%
+      tests <- pet_records()$viewVisitsTests %>%
         filter(visit_id == id(), test_category %in% "routine") %>% 
         mutate_at(vars(test_name, test_result), funs(replace(., is.na(.), "None"))) %>% 
         select(Name = test_name, Result = test_result) 
+      if (nrow(tests) == 0) {
+        tibble(Name = "None",
+               Result = "None")
+      } else {
+        tests
+      }
     }
   })
   
   output$routine_medication_info <- renderText({
     if (show_routine_fun()) {
-      pet_records()$viewVisitsMeds %>%
+      meds <- pet_records()$viewVisitsMeds %>%
         filter(visit_id == id(), med_category %in% c("flea and tick", "heartworm")) %>% 
         select(med_name) %>% 
         mutate_at(vars(med_name), funs(replace(., is.na(.), "None"))) %>% 
         distinct() %>% 
         pull() %>% 
         paste(collapse  = "<br>")
+      
+      if (meds == "") {
+        "None"
+      } else {
+        meds
+      }
     }
   })
   
@@ -468,6 +484,7 @@ function(input, output, session) {
     
     pet_records()$viewMedsPetsVets %>%
       filter(pet_name %in% input$pet, med_current_flag == "Y") %>%
+      arrange(desc(med_start_date)) %>%
       mutate(med_start_date = format(as.Date(med_start_date), format = "%m-%d-%Y")) %>% 
       select(Medication = med_name, "Prescribing Vet" =  vet_name, "Start Date" = med_start_date, Dosage = med_dosage, Frequency = med_dosage_freq, Category = med_category) %>% 
       datatable(options = list(pageLength = 10, dom = 'ltip'),
@@ -481,8 +498,9 @@ function(input, output, session) {
     pet_records()$viewMedsPetsVets %>%
       filter(pet_name %in% input$pet, med_current_flag == "N") %>%
       arrange(desc(med_end_date)) %>%
-      mutate(med_end_date = format(as.Date(med_end_date), format = "%m-%d-%Y")) %>% 
-      select(Medication = med_name, "Prescribing Vet" = vet_name, "End Date" = med_end_date, Dosage = med_dosage, Frequency = med_dosage_freq, Category = med_category) %>% 
+      mutate(med_end_date = format(as.Date(med_end_date), format = "%m-%d-%Y"),
+             med_start_date = format(as.Date(med_start_date), format = "%m-%d-%Y")) %>% 
+      select(Medication = med_name, "Prescribing Vet" = vet_name, "Start Date" = med_start_date, "End Date" = med_end_date, Dosage = med_dosage, Frequency = med_dosage_freq, Category = med_category) %>% 
       datatable(options = list(pageLength = 10),
                 rownames = FALSE)
   })
@@ -540,8 +558,8 @@ function(input, output, session) {
     values$vacc_tl_selected <- input$vaccine_history_timeline_selected
   })
   
-  # clear selection if different pet is chosen
-  observeEvent(input$pet, {
+  # clear selection if different pet or current vs. past vaccine history is chosen
+  observeEvent(c(input$pet, input$vacc), {
     values$vacc_tl_selected <- NULL
   })
   
@@ -553,6 +571,8 @@ function(input, output, session) {
   })
   
   cert <- reactive({
+    # get doc not found error if data is filtered and all values in the column are NA
+    # timeline data deletes column if all values in a column are NA
     if (!is.null(values$vacc_tl_selected)) {
       input$vaccine_history_timeline_data %>%
         filter(id == values$vacc_tl_selected) %>%  

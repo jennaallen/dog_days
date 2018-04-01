@@ -49,23 +49,20 @@ fluidPage(
               tabsetPanel(id = "tabs", tabPanel(div(icon("medkit"), "Medical History"),
                                    # medical history and test timeline ####
                                    wellPanel(h3("Medical History and Tests Timeline"),
-                                             fluidRow(column(3, uiOutput("med_tl_dates")
+                                             h5("Click an item to view more details or test results (where available). The information is shown below the timeline."),
+                                             fluidRow(column(4, uiOutput("med_tl_dates")
                                                              ),
-                                                      column(5, checkboxInput(inputId = "routine_visits",
+                                                      column(4, checkboxInput(inputId = "routine_visits",
                                                                               label = "Show routine visits",
                                                                               value = FALSE)
                                                              ),
                                                       column(4, h4(htmlOutput(outputId = "helpful_text"))
                                                              )
                                                       ),
-                                             h5("Click an item to view more details or test results (where available). The information is shown below the timeline."),
-                                             # checkboxInput(inputId = "routine_visits",
-                                             #              label = "Show routine visits",
-                                             #              value = FALSE),
                                              withSpinner(timevisOutput("med_history_timeline")
                                                          ),
-                                             fluidRow(column(12, div(id = "tl_button", actionButton("medfit", "Fit All Items"),
-                                                             actionButton("meddefault", "Reset to Default")
+                                             fluidRow(column(12, div(id = "tl_button", actionButton("med_fit", "Show All Items"),
+                                                             actionButton("med_default", "Reset to Default")
                                                                     )
                                                              )
                                                       )
@@ -123,19 +120,20 @@ fluidPage(
                                    # vaccine history timeline ####
                                    wellPanel(h3("Vaccine Timeline"),
                                              h5("Select an item to view vaccine certificate (where available). The information is shown below the timeline."),
-                                             checkboxGroupInput(inputId = "vacc",
+                                             fluidRow(column(8, checkboxGroupInput(inputId = "vacc",
                                                                 label = NULL,
                                                                 choices = c("Current Vaccines" = "Y", 
                                                                             "Past Vaccines" = "N"),
                                                                 selected = "Y"
-                                                                ),
+                                                                )
+                                                            ),
+                                                      column(4, h4(htmlOutput(outputId = "more_helpful_text")
+                                                                   )
+                                                             )
+                                                      ),
                                              withSpinner(timevisOutput("vaccine_history_timeline")
                                                          ),
-                                             fluidRow(column(2, actionButton("vaccinefit", "Fit All Items")
-                                                             ), 
-                                                      column(10, h4(htmlOutput(outputId = "more_helpful_text"))
-                                                             )
-                                                      )
+                                             actionButton("vaccinefit", "Show All Items")
                                              ),
                                    # show vaccine certificate ####
                                    conditionalPanel(condition = "output.show_vaccine_cert", 

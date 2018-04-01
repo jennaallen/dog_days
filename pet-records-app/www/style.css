@@ -25,27 +25,21 @@ form.well {
   box-shadow: 2px 2px 3px #444;
 }
 
-/*#med_history_timeline {
-  font-family:  purisa, 'comic sans', cursive;
-}*/
-
-/*#med_history_timeline .vis-timeline {
-  border: 2px solid purple;
-  font-size: 12pt;
-  background: #ffecea; controls shaded background color
-}*/
+#med_history_timeline .vis-item.routine {
+  border-color: #1dade5;  
+  background-color: #1dade5;
+  color: #fff; 
+}
 
 #med_history_timeline .vis-item.med {
-  border-color: #158CBA;  /*this controls the line and dot color*/
-  background-color: #158CBA; /*#4abeeb; controls color of item box*/
-  /*font-size: 15pt; controls font of item*/
-  color:  #fff; /*control text color of item text*/
+  border-color: #158CBA;
+  background-color: #158CBA; 
+  color: #fff; 
 }
 
 #med_history_timeline .vis-item.test {
   border-color: #75CAEB;  
-  background-color: #75CAEB; /*#ffa04e; controls color of item box
-  font-size: 15pt; controls font of item*/
+  background-color: #75CAEB; 
   color: #fff; 
 }
 
@@ -53,46 +47,24 @@ form.well {
   background-color: #fd7e14;
 }
 
-/*#timeline .vis-item.routine {
-  border-color: #5CA1D0;  this controls the line and dot color
-  background-color: pink; controls color of item box
-  font-size: 15pt; controls font of item
-  color: purple; control text color of item text
-}*/
-
-/*#med_history_timeline .vis-item {
-  border-color: #F991A3; this controls the line and dot color
-  background-color: pink; controls color of item box
-  font-size: 15pt; controls font of item
-  color: purple; control text color of item text 
-  box-shadow: 5px 5px 20px rgba(128,128,128, 0.5);
-  border-width: 1px; /*controls border around item
-}*/
-
 #tl_button .btn {
   margin-right: 7px;
 }
 
 #vaccine_history_timeline .vis-item.current {
-  border-color: #158CBA; /*this controls the line and dot color*/
-  background-color: #158CBA; /*controls color of item box*/
-  /*font-size: 15pt; controls font of item*/
-  color: #fff; /*control text color of item text*/ 
-  /*box-shadow: 5px 5px 20px rgba(128,128,128, 0.5);
-  border-width: 1px; /*controls border around item*/
+  border-color: #158CBA;
+  background-color: #158CBA;
+  color: #fff;
 }
 
 #vaccine_history_timeline .vis-item.past {
-  border-color: #999; /*this controls the line and dot color*/
-  background-color: #999; /*controls color of item box*/
-  /*font-size: 15pt; controls font of item*/
-  color: #fff; /*control text color of item text*/ 
-  /*box-shadow: 5px 5px 20px rgba(128,128,128, 0.5);
-  border-width: 1px; /*controls border around item*/
+  border-color: #999;
+  background-color: #999;
+  color: #fff; 
 }
 
 #med_history_timeline .vis-item.vis-line {
-  border-width: 2px; /*controls line thickness*/
+  border-width: 2px;
 }
 
 #med_history_timeline .vis-item.vis-dot {
@@ -109,41 +81,3 @@ form.well {
   border-color: #fd9a47;
   background-color: #fd9a47;
 }
-
-
-/*#med_history_timeline .vis-odd {
-  background: #ffd7d7; controls the color for the unshaded background
-}*/
-
-/*#med_history_timeline .vis-time-axis .vis-text {
-  color: purple; changes axis text color and somehow the scale
-  padding-top: 10px;
-  padding-left: 10px;
-}*/
-
-/*#med_history_timeline .vis-time-axis .vis-grid.vis-minor {
-  border-width: 2px; changes line inbetween months on axis
-  border-color: pink;
-}*/
-
-/*#med_history_timeline .vis-time-axis .vis-grid.vis-major {
-  border-width: 2px; not sure what this does
-  border-color: #F991A3;
-}*/
-
-/*.dataTable {
-  font-size: 12px; controls just the datatable part
-}*/
-
-/*#med_tests_table {
-  font-size: 12px; controls all the font
-}*/
-
-/*.dataTables_wrapper*/
-/*.dataTables_paginate {
-  font-size: 12px;
-}
-
-.dataTables_info {
-  font-size: 12px;
-}*/
