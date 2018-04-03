@@ -127,7 +127,8 @@ function(input, output, session) {
       pull(visit_weight) %>% 
       sparkline(width = "98%", 
                 height = "100px", 
-                spotRadius = 7, 
+                spotRadius = 7,
+                spotColor = FALSE,
                 highlightSpotColor = "#999", 
                 fillColor = FALSE, 
                 lineColor = "#999", 
