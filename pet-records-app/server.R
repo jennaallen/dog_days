@@ -461,7 +461,7 @@ function(input, output, session) {
         test_result() %>%
           str_replace("https://s3.amazonaws.com", "s3:/") %>%
           get_object() %>%
-          writeBin("www/test_result.pdf") # tempfile(fileext = ".pdf")
+          writeBin("www/test_result.pdf")
         tags$iframe(style = "height:1400px; width:100%", src = "test_result.pdf")
       } else {
         h3("No Test Results Available")

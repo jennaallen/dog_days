@@ -119,7 +119,7 @@ fluidPage(
                           tabPanel(div(icon("heartbeat"), "Vaccine History"),
                                    # vaccine history timeline ####
                                    wellPanel(h3("Vaccine Timeline"),
-                                             h5("Select an item to view vaccine certificate (where available). The information is shown below the timeline."),
+                                             h5("Click an item to view vaccine certificate (where available). The information is shown below the timeline."),
                                              fluidRow(column(8, checkboxGroupInput(inputId = "vacc",
                                                                 label = NULL,
                                                                 choices = c("Current Vaccines" = "Y", 
