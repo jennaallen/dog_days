@@ -6,6 +6,7 @@ library(sparkline)
 library(timevis)
 library(DT)
 library(shinycssloaders)
+library(fontawesome)
 
 fluidPage(
   # define theme ####
@@ -30,7 +31,7 @@ fluidPage(
                  br(), br(),
                  htmlOutput("pet_info"), 
                  br(),
-                 h5(icon("scale", lib = "glyphicon"), "Weight History (lbs.)"),
+                 h5(fa("weight", fill = "#158cba"), "Weight History (lbs.)"),
                  sparklineOutput("pet_weight"),
                  br(),
                  tableOutput("pet_weight_table"),
@@ -46,7 +47,7 @@ fluidPage(
                  ),
     
     mainPanel(width = 10, 
-              tabsetPanel(tabPanel(div(icon("medkit"), "Medical History"),
+              tabsetPanel(tabPanel(div(fa("notes-medical", fill = "#158cba"), "Medical History"),
                                    # medical history and test timeline ####
                                    wellPanel(h3("Medical History and Tests Timeline"),
                                              h5("Click an item to view more details or test results (where available). The information is shown below the timeline."),
@@ -116,7 +117,7 @@ fluidPage(
                                                     ),
                                    uiOutput("test_results")
                                    ),
-                          tabPanel(div(icon("heartbeat"), "Vaccine History"),
+                          tabPanel(div(fa("syringe", fill = "#158cba"), "Vaccine History"),
                                    # vaccine history timeline ####
                                    wellPanel(h3("Vaccine Timeline"),
                                              h5("Click an item to view vaccine certificate (where available). The information is shown below the timeline."),
@@ -144,7 +145,7 @@ fluidPage(
                                                     ),
                                    uiOutput("vaccine_cert")
                                    ),
-                          tabPanel(div(icon("hospital-o"), "Medication History"),
+                          tabPanel(div(fa("capsules", fill = "#158cba"), "Medication History"),
                                    # current meds table ####
                                    wellPanel(h3("Current Medications"),
                                              br(),
@@ -156,7 +157,7 @@ fluidPage(
                                              dataTableOutput(outputId = "past_meds_table")
                                              )
                                    ),
-                          tabPanel(div(icon("user-md"), "Vet History"),
+                          tabPanel(div(fa("user-md", fill = "#158cba"), "Vet History"),
                                    # vet history ####
                                    wellPanel(h3("Vets"), 
                                              br(),
