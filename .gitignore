@@ -4,3 +4,7 @@
 .Ruserdata
 .DS_Store
 .Renviron
+*.mwb
+*.Rproj
+*.pages
+*.bak
