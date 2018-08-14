@@ -12,6 +12,7 @@ library(sparkline)
 library(magick)
 library(RMySQL)
 library(lubridate)
+library(fs)
 
 source("utils.R")
 
@@ -202,9 +203,6 @@ function(input, output, session) {
   })
   
   # update med timeline date range based on user input and button pushes ####
-  observeEvent(input$med_tl_date_range, {
-    setWindow("med_history_timeline", input$med_tl_date_range[1], input$med_tl_date_range[2])
-  })
 
   # fit all items on timeline on button push
   observeEvent(input$med_fit, {
@@ -224,7 +222,6 @@ function(input, output, session) {
                          start = prettyDate(input$med_history_timeline_window[1]),
                          end = prettyDate(input$med_history_timeline_window[2]))
   })
-  
   
   # define reactiveValues to prevent errors when user has an item selected in a timeline 
   # and then changes the pet filter or routine visits checkbox
@@ -430,14 +427,16 @@ function(input, output, session) {
   })
   
   # show exam file if visit is selected in timeline ####
+  exam_path <- file_temp("exam_pdf", tmp_dir = "www", ext = ".pdf")
+  
   output$exam <- renderUI({
     if (show_visit_details_fun() | show_routine_fun()) {
       if (!is.na(exam())) {
         exam() %>%
           str_replace("https://s3.amazonaws.com", "s3:/") %>%
           get_object() %>%
-          writeBin("www/exam.pdf")
-        tags$iframe(style = "height:1400px; width:100%", src = "exam.pdf")
+          writeBin(exam_path)
+        tags$iframe(style = "height:1400px; width:100%", src = str_sub(exam_path, 5))
       } else {
         h3("No Exam Notes Available")
         }
@@ -450,19 +449,21 @@ function(input, output, session) {
       "exam.pdf"
     },
     content = function(file) {
-      file.copy("www/exam.pdf", file)
+      file.copy(exam_path, file)
     }
   )
   
   # show test results file if test is selected in timeline ####
+  test_result_path <- file_temp("test_result_pdf", tmp_dir = "www", ext = ".pdf")
+  
   output$test_results <- renderUI({
     if (show_test_results_fun()) {
       if (!is.na(test_result())) {
         test_result() %>%
           str_replace("https://s3.amazonaws.com", "s3:/") %>%
           get_object() %>%
-          writeBin("www/test_result.pdf")
-        tags$iframe(style = "height:1400px; width:100%", src = "test_result.pdf")
+          writeBin(test_result_path)
+        tags$iframe(style = "height:1400px; width:100%", src = str_sub(test_result_path, 5))
       } else {
         h3("No Test Results Available")
         }
@@ -475,7 +476,7 @@ function(input, output, session) {
       "test_result.pdf"
     },
     content = function(file) {
-      file.copy("www/test_result.pdf", file)
+      file.copy(test_result_path, file)
     }
   )
   
@@ -588,14 +589,16 @@ function(input, output, session) {
   outputOptions(output, "show_vaccine_cert", suspendWhenHidden = FALSE)
   
   # show vaccine cert if vaccine is selected in timeline ####
+  vaccine_cert_path <- file_temp("vaccine_cert_pdf", tmp_dir = "www", ext = ".pdf")
+  
   output$vaccine_cert <- renderUI({
     if (!is.null(values$vacc_tl_selected)) {
       if (!is.na(cert())) {
         cert() %>% 
           str_replace("https://s3.amazonaws.com", "s3:/") %>%
           get_object() %>% 
-          writeBin("www/vaccine.pdf")
-        tags$iframe(style = "height:1400px; width:100%", src = "vaccine.pdf")
+          writeBin(vaccine_cert_path)
+        tags$iframe(style = "height:1400px; width:100%", src = str_sub(vaccine_cert_path, 5))
       } else {
         h3("No Vaccine Certificate Available")
         }
@@ -608,7 +611,13 @@ function(input, output, session) {
       "vaccine_cert.pdf"
     },
     content = function(file) {
-      file.copy("www/vaccine.pdf", file)
+      file.copy(vaccine_cert_path, file)
     }
   )
+  
+  # delete session files when the application exits (when runApp exits) 
+  # or after each user session ends
+  onStop(function()
+    unlink(c(test_result_path, exam_path, vaccine_cert_path)))
+  
 }
