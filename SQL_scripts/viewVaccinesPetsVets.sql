@@ -26,7 +26,8 @@ SELECT dimVaccines.vaccine_id,
     dimVets.vet_phone,
     dimVets.vet_website,
     dimVets.vet_email,
-    dimVets.vet_med_rec_site
+    dimVets.vet_med_rec_site,
+    DATEDIFF(dimVaccines.vaccine_date_expires, CURDATE()) AS days_to_expiration
 FROM PetRecords.dimVaccines
 INNER JOIN PetRecords.dimPets
 ON dimVaccines.pet_id = dimPets.pet_id
