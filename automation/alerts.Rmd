@@ -1,0 +1,28 @@
+We look at download trends in the following packages.
+
+```{r}
+library(drake)
+```
+
+
+Using the cranlogs package, we calculate the mean number of downloads for each package from the RStudio CRAN mirror. We show these averages for the last month,
+
+```{r}
+readd(table_layla)
+```
+
+and from November 1 to December 1 in 2016.
+
+
+```{r}
+readd(table_lloyd)
+```
+
+
+We visualize the daily downloads from the last month,
+
+readd(plot_recent)
+
+and from November 1 to December 1 in 2016.
+
+readd(plot_older)
