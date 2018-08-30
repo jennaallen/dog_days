@@ -28,17 +28,26 @@ trigger(condition = days_to_expiration <= 30)
 
 kable_table <- function(dog) {
   dog %>% 
-    mutate(#vaccine_date_expires = cell_spec(vaccine_date_expires, "html", color = ifelse(days_to_expiration <= 30, "red", "green")),
+    mutate(vaccine_date_expires = cell_spec(vaccine_date_expires, "html", color = ifelse(days_to_expiration <= 30, "red", "green")),
            days_to_expiration = color_tile("white", "orange")(days_to_expiration)) %>% 
+    select(pet_name, vaccine_name, vaccine_date_given, vaccine_date_expires, vet_name, vet_phone, vet_website, vet_email, days_to_expiration) %>% 
     kable(format = "html", escape = F) %>% 
     kable_styling(bootstrap_options = c("striped", "hover"))
 }
 
 get_data <- function(dog_name, table, connection) {
   dbReadTable(connection, table) %>% 
-    filter(vaccine_current_flag == "Y", pet_name == dog_name) %>% 
-    select(pet_name, vaccine_name, vaccine_date_given, vaccine_date_expires, vet_name, vet_phone, vet_website, vet_email, days_to_expiration)
+    filter(vaccine_current_flag == "Y", pet_name == dog_name) 
 }
+
+# max_cu_date <- dbGetQuery(con, "SELECT MAX(cu_date) AS max_cu_date
+#                                 FROM viewMaxVaccineCreatedUpdatedDates")
+# 
+# data_plan <- drake_plan(
+#   layla = target(get_data("Layla", "viewVaccinesPetsVets", con), trigger(change = max_cu_date)),
+#   lloyd = target(get_data("Lloyd", "viewVaccinesPetsVets", con), trigger(change = max_cu_date)),
+#   strings_in_dots = "literals"
+# )
 
 data_plan <- drake_plan(
   layla = get_data("Layla", "viewVaccinesPetsVets", con),
@@ -72,6 +81,13 @@ whole_plan <- bind_plans(
   output_plan,
   report_plan
 )
+
+# config <- drake_config(whole_plan)
+# vis_drake_graph(config)
+
+# if (days_to_expiration <= 30) {
+#   make(whole_plan)
+# }
 
 make(whole_plan)
 
