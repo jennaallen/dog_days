@@ -20,54 +20,69 @@ source("utils.R")
 # and shared across all user sessions (within the same R process)
 # reactivePoll performs check function every 24 hours
 # get the data ####
-pet_records <- reactivePoll(86400000, session,
-                            checkFunc = function() {
-                              con <- dbConnect(MySQL(),
-                                               username = Sys.getenv("RDSpetsuser"),
-                                               password = Sys.getenv("RDSpetspw"),
-                                               host = Sys.getenv("RDShost"),
-                                               dbname = 'PetRecords')
-                              
-                              # gets max data from database view to determine if data needs to be updated
-                              max_date <- dbGetQuery(con, "SELECT MAX(cu_date) AS max_cu_date
-                                                     FROM viewMaxCreatedUpdatedDates")
-                              
-                              # disconnect from RDS
-                              dbDisconnect(con)
-                              return(max_date)
-                              }, 
-                            
-                            valueFunc = function() {
-                              con <- dbConnect(MySQL(),
-                                               username = Sys.getenv("RDSpetsuser"),
-                                               password = Sys.getenv("RDSpetspw"),
-                                               host = Sys.getenv("RDShost"),
-                                               dbname = 'PetRecords')
-                              
-                              tables <- c("dimPets",
-                                          "dimTests", 
-                                          "viewVisitsPets",
-                                          "viewRoutineMedHistTimeline",
-                                          "viewMedHistTimeline", 
-                                          "viewVisitsVets", 
-                                          "viewVisitsTests", 
-                                          "viewVisitsMeds", 
-                                          "viewMedsPetsVets", 
-                                          "viewVisitsPetsVets", 
-                                          "viewVaccineHistTimeline")
-                              df_list <- setNames(map(tables, ~ dbReadTable(con, .)), tables)
-                              
-                              # disconnect from RDS
-                              dbDisconnect(con)
-                              
-                              return(df_list)
-                            }
-                           )
+# pet_records <- reactivePoll(86400000, session,
+#                             checkFunc = function() {
+#                               con <- dbConnect(MySQL(),
+#                                                username = Sys.getenv("RDSpetsuser"),
+#                                                password = Sys.getenv("RDSpetspw"),
+#                                                host = Sys.getenv("RDShost"),
+#                                                dbname = 'PetRecords')
+# 
+#                               # gets max data from database view to determine if data needs to be updated
+#                               max_date <- dbGetQuery(con, "SELECT MAX(cu_date) AS max_cu_date
+#                                                      FROM viewMaxCreatedUpdatedDates")
+# 
+#                               # disconnect from RDS
+#                               dbDisconnect(con)
+#                               return(max_date)
+#                               },
+# 
+#                             valueFunc = function() {
+#                               con <- dbConnect(MySQL(),
+#                                                username = Sys.getenv("RDSpetsuser"),
+#                                                password = Sys.getenv("RDSpetspw"),
+#                                                host = Sys.getenv("RDShost"),
+#                                                dbname = 'PetRecords')
+# 
+#                               tables <- c("dimPets",
+#                                           "dimTests",
+#                                           "viewVisitsPets",
+#                                           "viewRoutineMedHistTimeline",
+#                                           "viewMedHistTimeline",
+#                                           "viewVisitsVets",
+#                                           "viewVisitsTests",
+#                                           "viewVisitsMeds",
+#                                           "viewMedsPetsVets",
+#                                           "viewVisitsPetsVets",
+#                                           "viewVaccineHistTimeline")
+#                               df_list <- setNames(map(tables, ~ dbReadTable(con, .)), tables)
+# 
+#                               # disconnect from RDS
+#                               dbDisconnect(con)
+# 
+#                               return(df_list)
+#                             }
+#                            )
+
+tables <- c("dimPets",
+            "dimTests",
+            "viewVisitsPets",
+            "viewRoutineMedHistTimeline",
+            "viewMedHistTimeline",
+            "viewVisitsVets",
+            "viewVisitsTests",
+            "viewVisitsMeds",
+            "viewMedsPetsVets",
+            "viewVisitsPetsVets",
+            "viewVaccineHistTimeline")
+con <- dbConnect(RSQLite::SQLite(), "PetRecords.sqlite")
+pet_records <- setNames(map(tables, ~ dbReadTable(con, .)), tables)
+dbDisconnect(con)
 
 function(input, output, session) {
   # create options for pet selection radio button ####
   output$all_pets <- renderUI({
-    pets <- pet_records()$dimPets %>% 
+    pets <- pet_records$dimPets %>% 
       pull(pet_name)
     
     radioButtons(inputId = "pet",
@@ -80,7 +95,7 @@ function(input, output, session) {
   output$pet_image <- renderImage({
     req(input$pet)
     
-    tmpfile <- pet_records()$dimPets %>%
+    tmpfile <- pet_records$dimPets %>%
       filter(pet_name %in% input$pet) %>%
       select(pet_picture) %>%
       str_replace("https://s3.amazonaws.com", "s3:/") %>%
@@ -97,20 +112,20 @@ function(input, output, session) {
   output$pet_info <- renderText({
     req(input$pet)
     
-    dob <- paste(strong("DOB:"), pet_records()$dimPets %>% 
+    dob <- paste(strong("DOB:"), pet_records$dimPets %>% 
                    filter(pet_name %in% input$pet) %>% 
                    mutate(pet_dob = format(as.Date(pet_dob), format = "%m-%d-%Y")) %>% 
                    pull(pet_dob))
-    species <- paste(strong("Species:"), pet_records()$dimPets %>% 
+    species <- paste(strong("Species:"), pet_records$dimPets %>% 
                        filter(pet_name %in% input$pet) %>% 
                        pull(pet_species))
-    breed <- paste(strong("Breed:"), pet_records()$dimPets %>%
+    breed <- paste(strong("Breed:"), pet_records$dimPets %>%
                      filter(pet_name %in% input$pet) %>% 
                      pull(pet_breed))
-    sex <- paste(strong("Sex:"), pet_records()$dimPets %>% 
+    sex <- paste(strong("Sex:"), pet_records$dimPets %>% 
                    filter(pet_name %in% input$pet) %>% 
                    pull(pet_sex))
-    color <- paste(strong("Color:"), pet_records()$dimPets %>% 
+    color <- paste(strong("Color:"), pet_records$dimPets %>% 
                      filter(pet_name %in% input$pet) %>% 
                      pull(pet_color))
     
@@ -121,7 +136,7 @@ function(input, output, session) {
   output$pet_weight <- renderSparkline({
     req(input$pet)
     
-    pet_records()$viewVisitsPets %>% 
+    pet_records$viewVisitsPets %>% 
       select(pet_name, visit_date, visit_weight) %>% 
       filter(pet_name == input$pet, !is.na(visit_weight)) %>% 
       arrange(visit_date) %>% 
@@ -142,7 +157,7 @@ function(input, output, session) {
   output$pet_weight_table <- renderTable({
     req(input$pet)
     
-    pet_records()$viewVisitsPets %>%
+    pet_records$viewVisitsPets %>%
       filter(pet_name == input$pet, !is.na(visit_weight)) %>% 
       select(visit_date, visit_weight) %>% 
       arrange(desc(visit_date)) %>% 
@@ -153,7 +168,7 @@ function(input, output, session) {
   
   # create date selections for med timeline date range input ####
   output$med_tl_dates <- renderUI({
-    min_date <- pet_records()$viewRoutineMedHistTimeline %>% 
+    min_date <- pet_records$viewRoutineMedHistTimeline %>% 
       select(start) %>%
       summarize(min(start)) %>% 
       pull()
@@ -179,7 +194,7 @@ function(input, output, session) {
     )
     
     if (input$routine_visits) {
-      grouped_data <- pet_records()$viewRoutineMedHistTimeline %>% 
+      grouped_data <- pet_records$viewRoutineMedHistTimeline %>% 
         filter(pet_name %in% input$pet) %>% 
         mutate(className = group,
                title = paste("Date:", format(as.Date(start), format = "%m-%d-%Y")))
@@ -189,7 +204,7 @@ function(input, output, session) {
         content = c("Routine", "Medical History", "Test History")
       )
     } else {
-      grouped_data <- pet_records()$viewMedHistTimeline %>% 
+      grouped_data <- pet_records$viewMedHistTimeline %>% 
         filter(pet_name %in% input$pet) %>% 
         mutate(className = group,
                title = paste("Date:", format(as.Date(start), format = "%m-%d-%Y")))
@@ -276,7 +291,7 @@ function(input, output, session) {
   
   test_result <- reactive({
     if (show_test_results_fun()) {
-      pet_records()$dimTests %>% 
+      pet_records$dimTests %>% 
         filter(test_id == id()) %>%
         pull(test_result_doc)
     }
@@ -284,7 +299,7 @@ function(input, output, session) {
   
   exam <- reactive({
     if (show_visit_details_fun() | show_routine_fun()) {
-      pet_records()$viewVisitsPets %>% 
+      pet_records$viewVisitsPets %>% 
         filter(visit_id == id()) %>%
         pull(visit_exam_doc)
     }
@@ -318,27 +333,27 @@ function(input, output, session) {
   # get routine details ####
   output$routine_visit_info <- renderText({
     if (show_routine_fun()) {
-      date <- paste(strong("Visit Date:"), pet_records()$viewVisitsVets %>% 
+      date <- paste(strong("Visit Date:"), pet_records$viewVisitsVets %>% 
                       filter(visit_id == id()) %>%
                       mutate(visit_date = format(as.Date(visit_date), format = "%m-%d-%Y")) %>% 
                       pull(visit_date))
-      vet <- paste(strong("Vet:"), pet_records()$viewVisitsVets %>% 
+      vet <- paste(strong("Vet:"), pet_records$viewVisitsVets %>% 
                      filter(visit_id == id()) %>%
                      pull(vet_name))
-      doctor <- paste(strong("Doctor:"), pet_records()$viewVisitsVets %>%
+      doctor <- paste(strong("Doctor:"), pet_records$viewVisitsVets %>%
                         filter(visit_id == id()) %>%
                         pull(visit_doctor))
-      vet_phone <- paste(strong("Vet Phone:"), pet_records()$viewVisitsVets %>%
+      vet_phone <- paste(strong("Vet Phone:"), pet_records$viewVisitsVets %>%
                            filter(visit_id == id()) %>%
                            pull(vet_phone))
-      visit_category <- pet_records()$viewVisitsVets %>%
+      visit_category <- pet_records$viewVisitsVets %>%
         filter(visit_id == id()) %>%
         pull(visit_category)
       # notes for visits tagged as medical and routine are shown when clicking medical item
       if (str_detect(visit_category, "medical")) {
         notes <- NA
       } else {
-        notes <- paste(strong("Visit Information:"), pet_records()$viewVisitsVets %>%
+        notes <- paste(strong("Visit Information:"), pet_records$viewVisitsVets %>%
                          filter(visit_id == id()) %>%
                          pull(visit_notes))
       }
@@ -349,7 +364,7 @@ function(input, output, session) {
   
   output$routine_test_info <- renderTable({
     if (show_routine_fun()) {
-      tests <- pet_records()$viewVisitsTests %>%
+      tests <- pet_records$viewVisitsTests %>%
         filter(visit_id == id(), test_category %in% "routine") %>% 
         mutate_at(vars(test_name, test_result), funs(replace(., is.na(.), "None"))) %>% 
         select(Name = test_name, Result = test_result) 
@@ -364,7 +379,7 @@ function(input, output, session) {
   
   output$routine_medication_info <- renderText({
     if (show_routine_fun()) {
-      meds <- pet_records()$viewVisitsMeds %>%
+      meds <- pet_records$viewVisitsMeds %>%
         filter(visit_id == id(), med_category %in% c("flea and tick", "heartworm")) %>% 
         select(med_name) %>% 
         mutate_at(vars(med_name), funs(replace(., is.na(.), "None"))) %>% 
@@ -384,20 +399,20 @@ function(input, output, session) {
   # get visit details ####
   output$visit_info <- renderText({
     if (show_visit_details_fun()) {
-      date <- paste(strong("Visit Date:"), pet_records()$viewVisitsVets %>% 
+      date <- paste(strong("Visit Date:"), pet_records$viewVisitsVets %>% 
                       filter(visit_id == id()) %>%
                       mutate(visit_date = format(as.Date(visit_date), format = "%m-%d-%Y")) %>% 
                       pull(visit_date))
-      vet <- paste(strong("Vet:"), pet_records()$viewVisitsVets %>% 
+      vet <- paste(strong("Vet:"), pet_records$viewVisitsVets %>% 
                      filter(visit_id == id()) %>%
                      pull(vet_name))
-      doctor <- paste(strong("Doctor:"), pet_records()$viewVisitsVets %>%
+      doctor <- paste(strong("Doctor:"), pet_records$viewVisitsVets %>%
                         filter(visit_id == id()) %>%
                         pull(visit_doctor))
-      vet_phone <- paste(strong("Vet Phone:"), pet_records()$viewVisitsVets %>%
+      vet_phone <- paste(strong("Vet Phone:"), pet_records$viewVisitsVets %>%
                            filter(visit_id == id()) %>%
                            pull(vet_phone))
-      notes <- paste(strong("Visit Information:"), pet_records()$viewVisitsVets %>%
+      notes <- paste(strong("Visit Information:"), pet_records$viewVisitsVets %>%
                        filter(visit_id == id()) %>%
                        pull(visit_notes))
       
@@ -407,7 +422,7 @@ function(input, output, session) {
   
   output$test_info <- renderTable({
     if (show_visit_details_fun()) {
-      pet_records()$viewVisitsTests %>%
+      pet_records$viewVisitsTests %>%
         filter(visit_id == id(), !(test_category %in% "routine")) %>% 
         mutate_at(vars(test_name, test_result), funs(replace(., is.na(.), "None"))) %>% 
         select(Name = test_name, Result = test_result) 
@@ -416,7 +431,7 @@ function(input, output, session) {
   
   output$medication_info <- renderText({
     if (show_visit_details_fun()) {
-      pet_records()$viewVisitsMeds %>%
+      pet_records$viewVisitsMeds %>%
         filter(visit_id == id(), !(med_category %in% c("flea and tick", "heartworm"))) %>% 
         select(med_name) %>% 
         mutate_at(vars(med_name), funs(replace(., is.na(.), "None"))) %>% 
@@ -484,7 +499,7 @@ function(input, output, session) {
   output$current_meds_table <- renderDataTable({
     req(input$pet)
     
-    pet_records()$viewMedsPetsVets %>%
+    pet_records$viewMedsPetsVets %>%
       filter(pet_name %in% input$pet, med_current_flag == "Y") %>%
       arrange(desc(med_start_date)) %>%
       mutate(med_start_date = format(as.Date(med_start_date), format = "%m-%d-%Y")) %>% 
@@ -497,7 +512,7 @@ function(input, output, session) {
   output$past_meds_table <- renderDataTable({
     req(input$pet)
     
-    pet_records()$viewMedsPetsVets %>%
+    pet_records$viewMedsPetsVets %>%
       filter(pet_name %in% input$pet, med_current_flag == "N") %>%
       arrange(desc(med_end_date)) %>%
       mutate(med_end_date = format(as.Date(med_end_date), format = "%m-%d-%Y"),
@@ -511,7 +526,7 @@ function(input, output, session) {
   output$vets_table <- renderDataTable({
     req(input$pet)
     
-    pet_records()$viewVisitsPetsVets %>%
+    pet_records$viewVisitsPetsVets %>%
       filter(pet_name %in% input$pet, vet_name != "No Vet") %>%
       select(Vet = vet_name, Phone = vet_phone, Website = vet_website, Email = vet_email, State = vet_state) %>% 
       distinct() %>% 
@@ -529,14 +544,14 @@ function(input, output, session) {
     )
     
     if (length(input$vacc) == 1 && input$vacc == "Y") {
-      pet_records()$viewVaccineHistTimeline %>%
+      pet_records$viewVaccineHistTimeline %>%
         rowid_to_column(var = "id") %>% 
         filter(pet_name %in% input$pet, current_flag %in% input$vacc) %>% 
         mutate(content = paste0("<b>",content, "</b>", "&nbsp;&nbsp;&nbsp;<i>expires in ", days_to_expiration," days</i>"),
                title = paste("Date Given: ", format(as.Date(start), format = "%m-%d-%Y"), "\n", "Date Expires: ", format(as.Date(end), format = "%m-%d-%Y"), "\n" ,"Vet: ", vet_name, sep = "")) %>% 
         timevis(options = config)
     } else {
-      vacc_data <- pet_records()$viewVaccineHistTimeline %>% 
+      vacc_data <- pet_records$viewVaccineHistTimeline %>% 
         rowid_to_column(var = "id") %>% 
         filter(pet_name %in% input$pet, current_flag %in% input$vacc) %>% 
         mutate(title = paste("Date Given: ", format(as.Date(start), format = "%m-%d-%Y"), "\n", "Date Expires: ", format(as.Date(end), format = "%m-%d-%Y"), "\n" ,"Vet: ", vet_name, sep = ""),
