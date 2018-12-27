@@ -18,51 +18,7 @@ source("utils.R")
 
 # getting the data outside of server, so data is created once 
 # and shared across all user sessions (within the same R process)
-# reactivePoll performs check function every 24 hours
-# get the data ####
-# pet_records <- reactivePoll(86400000, session,
-#                             checkFunc = function() {
-#                               con <- dbConnect(MySQL(),
-#                                                username = Sys.getenv("RDSpetsuser"),
-#                                                password = Sys.getenv("RDSpetspw"),
-#                                                host = Sys.getenv("RDShost"),
-#                                                dbname = 'PetRecords')
-# 
-#                               # gets max data from database view to determine if data needs to be updated
-#                               max_date <- dbGetQuery(con, "SELECT MAX(cu_date) AS max_cu_date
-#                                                      FROM viewMaxCreatedUpdatedDates")
-# 
-#                               # disconnect from RDS
-#                               dbDisconnect(con)
-#                               return(max_date)
-#                               },
-# 
-#                             valueFunc = function() {
-#                               con <- dbConnect(MySQL(),
-#                                                username = Sys.getenv("RDSpetsuser"),
-#                                                password = Sys.getenv("RDSpetspw"),
-#                                                host = Sys.getenv("RDShost"),
-#                                                dbname = 'PetRecords')
-# 
-#                               tables <- c("dimPets",
-#                                           "dimTests",
-#                                           "viewVisitsPets",
-#                                           "viewRoutineMedHistTimeline",
-#                                           "viewMedHistTimeline",
-#                                           "viewVisitsVets",
-#                                           "viewVisitsTests",
-#                                           "viewVisitsMeds",
-#                                           "viewMedsPetsVets",
-#                                           "viewVisitsPetsVets",
-#                                           "viewVaccineHistTimeline")
-#                               df_list <- setNames(map(tables, ~ dbReadTable(con, .)), tables)
-# 
-#                               # disconnect from RDS
-#                               dbDisconnect(con)
-# 
-#                               return(df_list)
-#                             }
-#                            )
+# switching to sqlite
 
 tables <- c("dimPets",
             "dimTests",
