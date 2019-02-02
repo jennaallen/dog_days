@@ -10,7 +10,6 @@ library(DT)
 library(aws.s3)
 library(sparkline)
 library(magick)
-library(RMySQL)
 library(lubridate)
 library(fs)
 
