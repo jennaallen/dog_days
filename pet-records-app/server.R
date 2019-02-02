@@ -10,6 +10,7 @@ library(DT)
 library(aws.s3)
 library(sparkline)
 library(magick)
+library(RSQLite)
 library(lubridate)
 library(fs)
 
@@ -30,7 +31,7 @@ tables <- c("dimPets",
             "viewMedsPetsVets",
             "viewVisitsPetsVets",
             "viewVaccineHistTimeline")
-con <- dbConnect(RSQLite::SQLite(), "PetRecords.sqlite")
+con <- dbConnect(SQLite(), "PetRecords.sqlite")
 pet_records <- setNames(map(tables, ~ dbReadTable(con, .)), tables)
 dbDisconnect(con)
 
